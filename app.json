@@ -22,7 +22,8 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.bikienga_hamza.DliverScreen"
     },
     "web": {
       "bundler": "metro",
@@ -30,10 +31,28 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "sounds": [
+            "./assets/sounds/delivery-alert.wav"
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "appEnv": "development",
+      "apiBaseUrl": "http://192.168.1.108:3000/api",
+      "enableMockAuthFallback": true,
+      "eas": {
+        "projectId": "092f688f-dbea-489d-b6b4-badeaf3272b8"
+      }
     }
   }
 }

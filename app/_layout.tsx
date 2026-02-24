@@ -1,106 +1,76 @@
-// import { Stack } from "expo-router";
-// import { useEffect } from "react";
-// import { ActivityIndicator, View } from "react-native";
-// import { COLORS } from "../constants/theme";
-// import { AuthProvider, useAuth } from "../context/AuthContext";
-
-// function RootNavigator() {
-//   const { isLoading, userToken, restoreToken } = useAuth();
-
-//   useEffect(() => {
-//     restoreToken();
-//   }, [restoreToken]);
-
-//   if (isLoading) {
-//     return (
-//       <View
-//         style={{
-//           flex: 1,
-//           justifyContent: "center",
-//           alignItems: "center",
-//           backgroundColor: COLORS.primary,
-//         }}
-//       >
-//         <ActivityIndicator size="large" color={COLORS.white} />
-//       </View>
-//     );
-//   }
-
-//   return (
-//     <Stack screenOptions={{ headerShown: false }}>
-//       {userToken ? (
-//         // Si connecté : On affiche le groupe de navigation (tabs)
-//         <Stack.Screen
-//           name="(tabs)"
-//           options={{ animation: "slide_from_right" }}
-//         />
-//       ) : (
-//         // Si déconnecté : On affiche l'écran de login
-//         <Stack.Screen name="index" options={{ animation: "fade" }} />
-//       )}
-//       <Stack.Screen name="modal" options={{ presentation: "modal" }} />
-//     </Stack>
-//   );
-// }
-
-// export default function RootLayout() {
-//   return (
-//     <AuthProvider>
-//       <RootNavigator />
-//     </AuthProvider>
-//   );
-// }
-
 import { Stack } from "expo-router";
-import { useEffect } from "react";
-import { ActivityIndicator, View } from "react-native";
-import { COLORS } from "../constants/theme";
-import { AuthProvider, useAuth } from "../context/AuthContext";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { AppErrorBoundary } from "@/src/app/providers/AppErrorBoundary";
+import { AppProviders } from "@/src/app/providers/AppProviders";
+import { NetworkStatusProvider } from "@/src/infrastructure/network/NetworkStatusProvider";
+import { OfflineSyncProvider } from "@/src/infrastructure/offline/OfflineSyncProvider";
+import { useAuth } from "@/src/modules/auth/hooks/useAuth";
+import { AuthProvider } from "@/src/modules/auth/store/AuthProvider";
+import { OfflineBanner } from "@/src/shared/components/OfflineBanner";
+import { COLORS } from "@/src/shared/theme";
 
-function RootNavigator() {
-  const { isLoading, userToken, restoreToken } = useAuth();
-
-  useEffect(() => {
-    restoreToken();
-  }, []);
+const RootNavigator = () => {
+  const { isLoading, isAuthenticated } = useAuth();
 
   if (isLoading) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: COLORS.primary,
-        }}
-      >
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.white} />
       </View>
     );
   }
 
-  return (
-    <Stack screenOptions={{ headerShown: false }}>
-      {userToken ? (
-        // 🔐 Connecté → zone protégée
-        <Stack.Screen
-          name="(tabs)"
-          options={{ animation: "slide_from_right" }}
-        />
-      ) : (
-        // 🔓 Non connecté → login (index public)
-        <Stack.Screen name="index" options={{ animation: "fade" }} />
-      )}
+  if (!isAuthenticated) {
+    return (
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+      </Stack>
+    );
+  }
 
-      <Stack.Screen name="modal" options={{ presentation: "modal" }} />
-    </Stack>
+  return (
+    <AppProviders>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="pressing"
+          options={{
+            headerShown: true,
+            title: "Pressing",
+            headerStyle: { backgroundColor: COLORS.primary },
+            headerTintColor: COLORS.white,
+          }}
+        />
+      </Stack>
+    </AppProviders>
   );
-}
+};
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RootNavigator />
-    </AuthProvider>
+    <AppErrorBoundary>
+      <NetworkStatusProvider>
+        <OfflineSyncProvider>
+          <AuthProvider>
+            <View style={styles.appContainer}>
+              <OfflineBanner />
+              <RootNavigator />
+            </View>
+          </AuthProvider>
+        </OfflineSyncProvider>
+      </NetworkStatusProvider>
+    </AppErrorBoundary>
   );
 }
+
+const styles = StyleSheet.create({
+  appContainer: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.primary,
+  },
+});
