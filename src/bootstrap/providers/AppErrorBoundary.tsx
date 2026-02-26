@@ -1,7 +1,7 @@
-import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
 import { logger } from "@/src/core/logger/logger";
 import { COLORS, Spacing, Typography } from "@/src/shared/theme";
+import React from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type AppErrorBoundaryProps = {
   children: React.ReactNode;
@@ -54,7 +54,9 @@ export class AppErrorBoundary extends React.Component<
     }
 
     return (
-      <React.Fragment key={this.state.retryKey}>{this.props.children}</React.Fragment>
+      <React.Fragment key={this.state.retryKey}>
+        {this.props.children}
+      </React.Fragment>
     );
   }
 }
@@ -90,3 +92,5 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
 });
+
+export default AppErrorBoundary;

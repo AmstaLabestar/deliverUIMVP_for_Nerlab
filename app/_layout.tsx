@@ -1,7 +1,7 @@
 import { Stack } from "expo-router";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
-import { AppErrorBoundary } from "@/src/app/providers/AppErrorBoundary";
-import { AppProviders } from "@/src/app/providers/AppProviders";
+import { AppErrorBoundary } from "@/src/bootstrap/providers/AppErrorBoundary";
+import { AppProviders } from "@/src/bootstrap/providers/AppProviders";
 import { NetworkStatusProvider } from "@/src/infrastructure/network/NetworkStatusProvider";
 import { OfflineSyncProvider } from "@/src/infrastructure/offline/OfflineSyncProvider";
 import { useAuth } from "@/src/modules/auth/hooks/useAuth";

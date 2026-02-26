@@ -1,5 +1,11 @@
+import { toErrorMessage } from "@/src/core/errors/toErrorMessage";
+import { CourseOfferCard } from "@/src/modules/courses/components/CourseOfferCard";
+import { useCourses } from "@/src/modules/courses/hooks/useCourses";
+import { useReservations } from "@/src/modules/reservations/hooks/useReservations";
+import { BorderRadius, COLORS, Shadows, Spacing, Typography } from "@/src/shared/theme";
+import { formatMoney } from "@/src/shared/utils/formatters";
 import { Href, useRouter } from "expo-router";
-import React from "react";
+import React, { useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -10,11 +16,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { CourseOfferCard } from "@/src/modules/courses/components/CourseOfferCard";
-import { useCourses } from "@/src/modules/courses/hooks/useCourses";
-import { useReservations } from "@/src/modules/reservations/hooks/useReservations";
-import { BorderRadius, COLORS, Shadows, Spacing, Typography } from "@/src/shared/theme";
-import { formatMoney } from "@/src/shared/utils/formatters";
 
 export const HomeScreen = () => {
   const router = useRouter();
@@ -27,27 +28,38 @@ export const HomeScreen = () => {
   } = useCourses();
   const { acceptCourse, rejectCourse } = useReservations();
 
-  const totalAmount = availableCourses.reduce((sum, course) => sum + course.montant, 0);
+  const totalAmount = useMemo(
+    () => availableCourses.reduce((sum, course) => sum + course.montant, 0),
+    [availableCourses],
+  );
 
   const handleAccept = async (courseId: string) => {
-    const accepted = await acceptCourse(courseId);
-    Alert.alert(
-      "Course acceptée",
-      `Course ${accepted.quartierDepart} → ${accepted.quartierArrivee} assignée.`,
-      [
-        {
-          text: "Voir réservation",
-          onPress: () => {
-            router.push("/reservations" as Href);
+    try {
+      const accepted = await acceptCourse(courseId);
+      Alert.alert(
+        "Course acceptée",
+        `Course ${accepted.quartierDepart} → ${accepted.quartierArrivee} assignée.`,
+        [
+          {
+            text: "Voir réservation",
+            onPress: () => {
+              router.push("/reservations" as Href);
+            },
           },
-        },
-        { text: "Rester ici" },
-      ],
-    );
+          { text: "Rester ici" },
+        ],
+      );
+    } catch (error) {
+      Alert.alert("Erreur", toErrorMessage(error));
+    }
   };
 
   const handleReject = async (courseId: string) => {
-    await rejectCourse(courseId);
+    try {
+      await rejectCourse(courseId);
+    } catch (error) {
+      Alert.alert("Erreur", toErrorMessage(error));
+    }
   };
 
   return (

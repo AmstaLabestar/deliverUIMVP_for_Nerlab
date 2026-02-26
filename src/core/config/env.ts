@@ -36,7 +36,7 @@ const resolveEnvironment = (): AppEnvironment => {
 const resolveApiBaseUrl = (): string => {
   const fromPublicEnv = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
   const fromExpoExtra = extra.apiBaseUrl?.trim();
-  const baseUrl = fromPublicEnv || fromExpoExtra || "http://192.168.1.108:3000/api";
+  const baseUrl = fromPublicEnv || fromExpoExtra || "http://192.168.1.64:3000/api";
 
   return baseUrl.replace(/\/+$/, "");
 };

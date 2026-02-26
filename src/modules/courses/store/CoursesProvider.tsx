@@ -1,9 +1,3 @@
-import {
-  InfiniteData,
-  useInfiniteQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
-import React, { createContext, useCallback, useMemo, useState } from "react";
 import { toErrorMessage } from "@/src/core/errors/toErrorMessage";
 import { useAuth } from "@/src/modules/auth/hooks/useAuth";
 import { coursesRepository } from "@/src/modules/courses/services/coursesService";
@@ -14,6 +8,12 @@ import {
   Cursor,
   CursorPage,
 } from "@/src/modules/courses/types/courseTypes";
+import {
+  InfiniteData,
+  useInfiniteQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import React, { createContext, useCallback, useMemo, useState } from "react";
 
 const AVAILABLE_PAGE_SIZE = 3;
 const HISTORY_PAGE_SIZE = 5;
@@ -120,7 +120,7 @@ export const CoursesProvider = ({ children }: { children: React.ReactNode }) => 
     }
 
     await availableCoursesQuery.fetchNextPage();
-  }, [availableCoursesQuery]);
+  }, [availableCoursesQuery.hasNextPage, availableCoursesQuery.isFetchingNextPage, availableCoursesQuery.fetchNextPage]);
 
   const loadMoreHistory = useCallback(async () => {
     if (!historyQuery.hasNextPage || historyQuery.isFetchingNextPage) {
@@ -128,7 +128,7 @@ export const CoursesProvider = ({ children }: { children: React.ReactNode }) => 
     }
 
     await historyQuery.fetchNextPage();
-  }, [historyQuery]);
+  }, [historyQuery.hasNextPage, historyQuery.isFetchingNextPage, historyQuery.fetchNextPage]);
 
   const assignCourse = useCallback(
     async (course: Course): Promise<Course> => {

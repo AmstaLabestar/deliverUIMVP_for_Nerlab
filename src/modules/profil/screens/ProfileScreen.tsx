@@ -1,12 +1,14 @@
-import React, { useState } from "react";
-import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from "@/src/modules/auth/hooks/useAuth";
 import { useNotificationPreferences } from "@/src/modules/notifications/hooks/useNotificationPreferences";
 import { BorderRadius, COLORS, Shadows, Spacing, Typography } from "@/src/shared/theme";
+import React, { useState } from "react";
+import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
 
 export const ProfileScreen = () => {
   const { user, signOut } = useAuth();
   const { preferences, setSoundEnabled } = useNotificationPreferences();
+  // TODO: Connect this toggle to a real driver availability service.
+  // Currently it's purely visual and does not persist or communicate with the backend.
   const [isOnline, setIsOnline] = useState(true);
 
   if (!user) {

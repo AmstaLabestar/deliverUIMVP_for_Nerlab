@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useMemo, useState } from "react";
+import { logger } from "@/src/core/logger/logger";
 import { STORAGE_KEYS } from "@/src/core/storage/storageKeys";
 import { storageRepository } from "@/src/core/storage/storageRepository";
 import { notificationService } from "@/src/modules/notifications/services/notificationService";
@@ -6,6 +6,12 @@ import {
   NotificationContextValue,
   NotificationPreferences,
 } from "@/src/modules/notifications/types/notificationTypes";
+import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import { z } from "zod";
+
+const notificationPreferencesSchema = z.object({
+  soundEnabled: z.boolean(),
+});
 
 const defaultPreferences: NotificationPreferences = {
   soundEnabled: true,
@@ -29,13 +35,20 @@ export const NotificationPreferencesProvider = ({
       try {
         await notificationService.initialize();
 
-        const storedPreferences =
-          await storageRepository.getItem<NotificationPreferences>(
-            STORAGE_KEYS.notificationPreferences,
-          );
+        const raw = await storageRepository.getItem<unknown>(
+          STORAGE_KEYS.notificationPreferences,
+        );
 
-        if (storedPreferences) {
-          setPreferences(storedPreferences);
+        if (raw) {
+          const parsed = notificationPreferencesSchema.safeParse(raw);
+          if (parsed.success) {
+            setPreferences(parsed.data);
+          } else {
+            logger.warn("notification_preferences_storage_invalid", {
+              issues: parsed.error.issues,
+            });
+            await storageRepository.removeItem(STORAGE_KEYS.notificationPreferences);
+          }
         }
       } finally {
         setIsLoading(false);
@@ -45,18 +58,21 @@ export const NotificationPreferencesProvider = ({
     void bootstrap();
   }, []);
 
-  const setSoundEnabled = async (value: boolean) => {
-    const next = { ...preferences, soundEnabled: value };
-    setPreferences(next);
-    await storageRepository.setItem(STORAGE_KEYS.notificationPreferences, next);
-  };
+  const setSoundEnabled = useCallback(async (value: boolean) => {
+    setPreferences((prev) => {
+      const next = { ...prev, soundEnabled: value };
+      void storageRepository.setItem(STORAGE_KEYS.notificationPreferences, next);
+      return next;
+    });
+  }, []);
 
-  const notifyPackageAccepted = async (courseSummary: string) => {
+  const notifyPackageAccepted = useCallback(async (courseSummary: string) => {
+    const currentPrefs = preferences;
     await notificationService.notifyPackageAccepted(
       courseSummary,
-      preferences.soundEnabled,
+      currentPrefs.soundEnabled,
     );
-  };
+  }, [preferences]);
 
   const value = useMemo<NotificationContextValue>(
     () => ({
@@ -65,7 +81,7 @@ export const NotificationPreferencesProvider = ({
       setSoundEnabled,
       notifyPackageAccepted,
     }),
-    [isLoading, preferences],
+    [isLoading, preferences, setSoundEnabled, notifyPackageAccepted],
   );
 
   return (

@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useMemo, useState } from "react";
+import { logger } from "@/src/core/logger/logger";
 import { STORAGE_KEYS } from "@/src/core/storage/storageKeys";
 import { storageRepository } from "@/src/core/storage/storageRepository";
 import { walletService } from "@/src/modules/portefeuille/services/walletService";
@@ -7,6 +7,22 @@ import {
   WalletContextValue,
   WalletState,
 } from "@/src/modules/portefeuille/types/walletTypes";
+import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import { z } from "zod";
+
+const walletTransactionSchema = z.object({
+  id: z.string().min(1),
+  type: z.enum(["credit", "debit"]),
+  amount: z.number(),
+  label: z.string(),
+  createdAt: z.string(),
+  courseId: z.string().optional(),
+});
+
+const walletStateSchema = z.object({
+  balance: z.number(),
+  transactions: z.array(walletTransactionSchema),
+});
 
 const defaultWalletState: WalletState = {
   balance: 0,
@@ -24,12 +40,18 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const restore = async () => {
       try {
-        const storedState = await storageRepository.getItem<WalletState>(
+        const raw = await storageRepository.getItem<unknown>(
           STORAGE_KEYS.walletState,
         );
 
-        if (storedState) {
-          setState(storedState);
+        if (raw) {
+          const parsed = walletStateSchema.safeParse(raw);
+          if (parsed.success) {
+            setState(parsed.data);
+          } else {
+            logger.warn("wallet_storage_invalid", { issues: parsed.error.issues });
+            await storageRepository.removeItem(STORAGE_KEYS.walletState);
+          }
         }
       } finally {
         setIsLoading(false);
@@ -39,32 +61,37 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     void restore();
   }, []);
 
-  const persistState = async (nextState: WalletState) => {
+  const persistState = useCallback(async (nextState: WalletState) => {
     setState(nextState);
     await storageRepository.setItem(STORAGE_KEYS.walletState, nextState);
-  };
+  }, []);
 
-  const recharge = async (amount: number) => {
-    const transaction = walletService.createRechargeTransaction(amount);
-    const nextState = walletService.appendTransaction(state, transaction);
-    await persistState(nextState);
-  };
+  const recharge = useCallback(async (amount: number) => {
+    setState((prev) => {
+      const transaction = walletService.createRechargeTransaction(amount);
+      const nextState = walletService.appendTransaction(prev, transaction);
+      void storageRepository.setItem(STORAGE_KEYS.walletState, nextState);
+      return nextState;
+    });
+  }, []);
 
-  const settleCompletedCourse = async (input: CourseSettlementInput) => {
-    const credit = walletService.createCourseCreditTransaction(
-      input.courseAmount,
-      input.courseId,
-    );
-    const stateWithCredit = walletService.appendTransaction(state, credit);
+  const settleCompletedCourse = useCallback(async (input: CourseSettlementInput) => {
+    setState((prev) => {
+      const credit = walletService.createCourseCreditTransaction(
+        input.courseAmount,
+        input.courseId,
+      );
+      const stateWithCredit = walletService.appendTransaction(prev, credit);
 
-    const debit = walletService.createCourseDebitTransaction(
-      input.commissionAmount,
-      input.courseId,
-    );
-    const nextState = walletService.appendTransaction(stateWithCredit, debit);
-
-    await persistState(nextState);
-  };
+      const debit = walletService.createCourseDebitTransaction(
+        input.commissionAmount,
+        input.courseId,
+      );
+      const nextState = walletService.appendTransaction(stateWithCredit, debit);
+      void storageRepository.setItem(STORAGE_KEYS.walletState, nextState);
+      return nextState;
+    });
+  }, []);
 
   const value = useMemo<WalletContextValue>(
     () => ({
@@ -73,7 +100,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       recharge,
       settleCompletedCourse,
     }),
-    [isLoading, state],
+    [isLoading, state, recharge, settleCompletedCourse],
   );
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
