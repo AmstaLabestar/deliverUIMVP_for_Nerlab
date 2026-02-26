@@ -1,3 +1,11 @@
+import { logger } from "@/src/core/logger/logger";
+import { useNetworkStatus } from "@/src/infrastructure/network/useNetworkStatus";
+import { offlineQueueStorage } from "@/src/infrastructure/offline/offlineQueueStorage";
+import {
+  EnqueueOfflineMutationInput,
+  OfflineSyncResult,
+} from "@/src/infrastructure/offline/offlineQueueTypes";
+import { offlineSyncService } from "@/src/infrastructure/offline/offlineSyncService";
 import React, {
   createContext,
   useCallback,
@@ -6,14 +14,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { logger } from "@/src/core/logger/logger";
-import { useNetworkStatus } from "@/src/infrastructure/network/useNetworkStatus";
-import { offlineQueueStorage } from "@/src/infrastructure/offline/offlineQueueStorage";
-import { offlineSyncService } from "@/src/infrastructure/offline/offlineSyncService";
-import {
-  EnqueueOfflineMutationInput,
-  OfflineSyncResult,
-} from "@/src/infrastructure/offline/offlineQueueTypes";
 
 type OfflineSyncContextValue = {
   queuedCount: number;
@@ -44,6 +44,9 @@ export const OfflineSyncProvider = ({ children }: { children: React.ReactNode })
     return unsubscribe;
   }, []);
 
+  const queuedCountRef = useRef(queuedCount);
+  queuedCountRef.current = queuedCount;
+
   const flushQueue = useCallback(async () => {
     setIsSyncing(true);
     try {
@@ -56,7 +59,7 @@ export const OfflineSyncProvider = ({ children }: { children: React.ReactNode })
       const fallbackResult: OfflineSyncResult = {
         processed: 0,
         failed: 0,
-        remaining: queuedCount,
+        remaining: queuedCountRef.current,
         syncedAt: new Date().toISOString(),
       };
       setLastSyncAt(fallbackResult.syncedAt);
@@ -65,7 +68,7 @@ export const OfflineSyncProvider = ({ children }: { children: React.ReactNode })
     } finally {
       setIsSyncing(false);
     }
-  }, [queuedCount]);
+  }, []);
 
   const enqueueMutation = useCallback(async (input: EnqueueOfflineMutationInput) => {
     await offlineQueueStorage.enqueue(input);
@@ -79,10 +82,10 @@ export const OfflineSyncProvider = ({ children }: { children: React.ReactNode })
       return;
     }
 
-    if (wasOffline || queuedCount > 0) {
+    if (wasOffline) {
       void flushQueue();
     }
-  }, [flushQueue, isOffline, queuedCount]);
+  }, [flushQueue, isOffline]);
 
   const value = useMemo<OfflineSyncContextValue>(
     () => ({

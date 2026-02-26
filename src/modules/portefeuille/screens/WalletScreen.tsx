@@ -1,22 +1,28 @@
-import React from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { TransactionItem } from "@/src/modules/portefeuille/components/TransactionItem";
 import { useWallet } from "@/src/modules/portefeuille/hooks/useWallet";
 import { BorderRadius, COLORS, Shadows, Spacing, Typography } from "@/src/shared/theme";
 import { formatMoney } from "@/src/shared/utils/formatters";
+import React, { useMemo } from "react";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 const quickRechargeAmounts = [2000, 5000, 10000];
 
 export const WalletScreen = () => {
   const { state, recharge } = useWallet();
 
-  const totalCredits = state.transactions
-    .filter((transaction) => transaction.type === "credit")
-    .reduce((sum, transaction) => sum + transaction.amount, 0);
+  const totalCredits = useMemo(
+    () => state.transactions
+      .filter((transaction) => transaction.type === "credit")
+      .reduce((sum, transaction) => sum + transaction.amount, 0),
+    [state.transactions],
+  );
 
-  const totalDebits = state.transactions
-    .filter((transaction) => transaction.type === "debit")
-    .reduce((sum, transaction) => sum + transaction.amount, 0);
+  const totalDebits = useMemo(
+    () => state.transactions
+      .filter((transaction) => transaction.type === "debit")
+      .reduce((sum, transaction) => sum + transaction.amount, 0),
+    [state.transactions],
+  );
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>

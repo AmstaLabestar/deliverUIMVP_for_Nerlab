@@ -1,8 +1,8 @@
-import React from "react";
-import { QueryProvider } from "@/src/app/providers/QueryProvider";
+import { QueryProvider } from "@/src/bootstrap/providers/QueryProvider";
 import { CoursesProvider } from "@/src/modules/courses/store/CoursesProvider";
 import { NotificationPreferencesProvider } from "@/src/modules/notifications/store/NotificationPreferencesProvider";
 import { WalletProvider } from "@/src/modules/portefeuille/store/WalletProvider";
+import React from "react";
 
 export const AppProviders = ({ children }: { children: React.ReactNode }) => {
   return (
@@ -15,3 +15,5 @@ export const AppProviders = ({ children }: { children: React.ReactNode }) => {
     </QueryProvider>
   );
 };
+
+export default AppProviders;

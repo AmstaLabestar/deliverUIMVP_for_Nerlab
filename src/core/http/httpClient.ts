@@ -1,15 +1,16 @@
-import axios, { AxiosError, AxiosHeaders, AxiosRequestConfig } from "axios";
 import { APP_CONFIG } from "@/src/core/config/env";
 import { AppError } from "@/src/core/errors/AppError";
 import { logger } from "@/src/core/logger/logger";
 import { parseWithSchema } from "@/src/core/validation/parseWithSchema";
 import {
   refreshTokenRequestSchema,
-  refreshTokenResponseSchema,
   RefreshTokenResponse,
+  refreshTokenResponseSchema,
 } from "@/src/modules/auth/schemas/authSchemas";
 import { authSessionRepository } from "@/src/modules/auth/services/authSessionRepository";
 import { AuthTokens } from "@/src/modules/auth/types/authTypes";
+import { resolveTokenTtlSeconds } from "@/src/modules/auth/utils/resolveTokenTtl";
+import axios, { AxiosError, AxiosHeaders, AxiosRequestConfig } from "axios";
 
 type RequestOptions = {
   token?: string;
@@ -82,27 +83,7 @@ const toAppError = (error: unknown): AppError => {
   return new AppError("unknown_error", "Une erreur inattendue est survenue.", error);
 };
 
-const resolveTokenTtlSeconds = (payload: RefreshTokenResponse): number => {
-  const ttlFromSeconds = payload.expiresInSeconds;
-  if (
-    typeof ttlFromSeconds === "number" &&
-    Number.isFinite(ttlFromSeconds) &&
-    ttlFromSeconds > 0
-  ) {
-    return ttlFromSeconds;
-  }
 
-  const ttlFromExpiresIn = payload.expiresIn;
-  if (
-    typeof ttlFromExpiresIn === "number" &&
-    Number.isFinite(ttlFromExpiresIn) &&
-    ttlFromExpiresIn > 0
-  ) {
-    return ttlFromExpiresIn;
-  }
-
-  return APP_CONFIG.auth.accessTokenTtlSeconds;
-};
 
 const buildRefreshedTokens = (
   payload: RefreshTokenResponse,

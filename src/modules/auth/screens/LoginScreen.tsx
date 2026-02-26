@@ -1,3 +1,6 @@
+import { toErrorMessage } from "@/src/core/errors/toErrorMessage";
+import { useAuth } from "@/src/modules/auth/hooks/useAuth";
+import { BorderRadius, COLORS, Spacing, Typography } from "@/src/shared/theme";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -11,13 +14,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { toErrorMessage } from "@/src/core/errors/toErrorMessage";
-import { useAuth } from "@/src/modules/auth/hooks/useAuth";
-import { BorderRadius, COLORS, Spacing, Typography } from "@/src/shared/theme";
 
 export const LoginScreen = () => {
-  const [telephone, setTelephone] = useState("77123456");
-  const [password, setPassword] = useState("1234");
+  const [telephone, setTelephone] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
 

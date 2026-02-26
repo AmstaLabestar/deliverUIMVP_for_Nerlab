@@ -4,9 +4,9 @@ import { httpClient } from "@/src/core/http/httpClient";
 import { logger } from "@/src/core/logger/logger";
 import { parseWithSchema } from "@/src/core/validation/parseWithSchema";
 import {
+  LoginApiResponse,
   loginApiResponseSchema,
   loginCredentialsSchema,
-  LoginApiResponse,
 } from "@/src/modules/auth/schemas/authSchemas";
 import {
   AuthSession,
@@ -16,6 +16,7 @@ import {
   LoginCredentials,
   VehicleType,
 } from "@/src/modules/auth/types/authTypes";
+import { resolveTokenTtlSeconds } from "@/src/modules/auth/utils/resolveTokenTtl";
 import { buildId } from "@/src/shared/utils/id";
 
 type BackendDriver = {
@@ -81,27 +82,7 @@ const mapAuthUser = (payload: BackendUser, fallbackTelephone: string): AuthUser 
   };
 };
 
-const resolveTokenTtlSeconds = (payload: LoginApiResponse): number => {
-  const ttlFromSeconds = payload.expiresInSeconds;
-  if (
-    typeof ttlFromSeconds === "number" &&
-    Number.isFinite(ttlFromSeconds) &&
-    ttlFromSeconds > 0
-  ) {
-    return ttlFromSeconds;
-  }
 
-  const ttlFromExpiresIn = payload.expiresIn;
-  if (
-    typeof ttlFromExpiresIn === "number" &&
-    Number.isFinite(ttlFromExpiresIn) &&
-    ttlFromExpiresIn > 0
-  ) {
-    return ttlFromExpiresIn;
-  }
-
-  return APP_CONFIG.auth.accessTokenTtlSeconds;
-};
 
 const buildTokensFromPayload = (payload: LoginApiResponse): AuthTokens => {
   const accessToken = payload.accessToken ?? payload.token;
