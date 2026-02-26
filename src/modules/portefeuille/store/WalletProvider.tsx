@@ -4,10 +4,17 @@ import { storageRepository } from "@/src/core/storage/storageRepository";
 import { walletService } from "@/src/modules/portefeuille/services/walletService";
 import {
   CourseSettlementInput,
-  WalletContextValue,
+  WalletActionsContextValue,
   WalletState,
+  WalletStateContextValue,
 } from "@/src/modules/portefeuille/types/walletTypes";
-import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { z } from "zod";
 
 const walletTransactionSchema = z.object({
@@ -29,41 +36,50 @@ const defaultWalletState: WalletState = {
   transactions: [],
 };
 
-export const WalletContext = createContext<WalletContextValue | undefined>(
-  undefined,
-);
+export const WalletStateContext = createContext<
+  WalletStateContextValue | undefined
+>(undefined);
+
+export const WalletActionsContext = createContext<
+  WalletActionsContextValue | undefined
+>(undefined);
 
 export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, setState] = useState<WalletState>(defaultWalletState);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const restore = async () => {
       try {
         const raw = await storageRepository.getItem<unknown>(
           STORAGE_KEYS.walletState,
         );
 
-        if (raw) {
-          const parsed = walletStateSchema.safeParse(raw);
-          if (parsed.success) {
-            setState(parsed.data);
-          } else {
-            logger.warn("wallet_storage_invalid", { issues: parsed.error.issues });
-            await storageRepository.removeItem(STORAGE_KEYS.walletState);
-          }
+        if (!isMounted || !raw) {
+          return;
+        }
+
+        const parsed = walletStateSchema.safeParse(raw);
+        if (parsed.success) {
+          setState(parsed.data);
+        } else {
+          logger.warn("wallet_storage_invalid", { issues: parsed.error.issues });
+          await storageRepository.removeItem(STORAGE_KEYS.walletState);
         }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     void restore();
-  }, []);
 
-  const persistState = useCallback(async (nextState: WalletState) => {
-    setState(nextState);
-    await storageRepository.setItem(STORAGE_KEYS.walletState, nextState);
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const recharge = useCallback(async (amount: number) => {
@@ -93,15 +109,27 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     });
   }, []);
 
-  const value = useMemo<WalletContextValue>(
+  const stateValue = useMemo<WalletStateContextValue>(
     () => ({
       state,
       isLoading,
+    }),
+    [isLoading, state],
+  );
+
+  const actionsValue = useMemo<WalletActionsContextValue>(
+    () => ({
       recharge,
       settleCompletedCourse,
     }),
-    [isLoading, state, recharge, settleCompletedCourse],
+    [recharge, settleCompletedCourse],
   );
 
-  return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
+  return (
+    <WalletStateContext.Provider value={stateValue}>
+      <WalletActionsContext.Provider value={actionsValue}>
+        {children}
+      </WalletActionsContext.Provider>
+    </WalletStateContext.Provider>
+  );
 };

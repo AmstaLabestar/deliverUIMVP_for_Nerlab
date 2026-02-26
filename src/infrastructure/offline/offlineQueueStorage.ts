@@ -71,13 +71,19 @@ const enqueue = async (input: EnqueueOfflineMutationInput): Promise<OfflineQueue
 };
 
 const subscribe = (listener: QueueListener): (() => void) => {
+  let isActive = true;
   listeners.add(listener);
 
   void getQueue().then((queue) => {
+    if (!isActive || !listeners.has(listener)) {
+      return;
+    }
+
     listener(queue);
   });
 
   return () => {
+    isActive = false;
     listeners.delete(listener);
   };
 };

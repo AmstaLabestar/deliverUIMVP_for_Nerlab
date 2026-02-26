@@ -1,7 +1,7 @@
 import { toErrorMessage } from "@/src/core/errors/toErrorMessage";
 import { useAuth } from "@/src/modules/auth/hooks/useAuth";
 import { BorderRadius, COLORS, Spacing, Typography } from "@/src/shared/theme";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -20,8 +20,15 @@ export const LoginScreen = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
+  const isMountedRef = useRef(true);
 
-  const handleLogin = async () => {
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const handleLogin = useCallback(async () => {
     if (!telephone.trim() || !password.trim()) {
       Alert.alert("Erreur", "Veuillez remplir tous les champs.");
       return;
@@ -33,9 +40,11 @@ export const LoginScreen = () => {
     } catch (error) {
       Alert.alert("Erreur de connexion", toErrorMessage(error));
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
-  };
+  }, [password, signIn, telephone]);
 
   return (
     <KeyboardAvoidingView
@@ -44,14 +53,14 @@ export const LoginScreen = () => {
     >
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.logo}>🚚</Text>
+          <Text style={styles.logo}>DLV</Text>
           <Text style={styles.appName}>OGA Livreur</Text>
           <Text style={styles.tagline}>Gagnez en livrant</Text>
         </View>
 
         <View style={styles.formContainer}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Numéro de Téléphone</Text>
+            <Text style={styles.label}>Numero de telephone</Text>
             <View style={styles.inputWrapper}>
               <Text style={styles.prefix}>+226</Text>
               <TextInput
@@ -68,7 +77,7 @@ export const LoginScreen = () => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Mot de Passe</Text>
+            <Text style={styles.label}>Mot de passe</Text>
             <TextInput
               style={styles.passwordInput}
               placeholder="Entrez votre mot de passe"
@@ -114,8 +123,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xxl,
   },
   logo: {
-    fontSize: 64,
+    fontSize: 48,
     marginBottom: Spacing.md,
+    color: COLORS.primary,
+    fontWeight: "700",
   },
   appName: {
     ...Typography.h1,

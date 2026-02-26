@@ -1,78 +1,20 @@
-import { toErrorMessage } from "@/src/core/errors/toErrorMessage";
-import { useAuth } from "@/src/modules/auth/hooks/useAuth";
 import { coursesRepository } from "@/src/modules/courses/services/coursesService";
+import { CoursesActionsProvider } from "@/src/modules/courses/store/CoursesActionsContext";
+import { CoursesDataProvider } from "@/src/modules/courses/store/CoursesDataContext";
 import { coursesQueryKeys } from "@/src/modules/courses/store/coursesQueryKeys";
-import {
-  Course,
-  CoursesContextValue,
-  Cursor,
-  CursorPage,
-} from "@/src/modules/courses/types/courseTypes";
-import {
-  InfiniteData,
-  useInfiniteQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
-import React, { createContext, useCallback, useMemo, useState } from "react";
+import { CoursesStatusProvider } from "@/src/modules/courses/store/CoursesStatusContext";
+import { Course, Cursor } from "@/src/modules/courses/types/courseTypes";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import React, { useCallback, useMemo, useState } from "react";
 
-const AVAILABLE_PAGE_SIZE = 3;
-const HISTORY_PAGE_SIZE = 5;
+const AVAILABLE_PAGE_SIZE = 4;
+const HISTORY_PAGE_SIZE = 8;
 
-type CoursePage = CursorPage<Course>;
-type CourseInfiniteData = InfiniteData<CoursePage, Cursor>;
+interface CoursesProviderProps {
+  children: React.ReactNode;
+}
 
-const removeCourseFromInfiniteData = (
-  previous: CourseInfiniteData | undefined,
-  courseId: string,
-): CourseInfiniteData | undefined => {
-  if (!previous) {
-    return previous;
-  }
-
-  return {
-    ...previous,
-    pages: previous.pages.map((page) => ({
-      ...page,
-      items: page.items.filter((item) => item.id !== courseId),
-    })),
-  };
-};
-
-const prependCourseToHistory = (
-  previous: CourseInfiniteData | undefined,
-  course: Course,
-): CourseInfiniteData => {
-  if (!previous || previous.pages.length === 0) {
-    return {
-      pageParams: [null],
-      pages: [
-        {
-          items: [course],
-          nextCursor: null,
-        },
-      ],
-    };
-  }
-
-  const firstPage = previous.pages[0];
-  const nextFirstPage: CoursePage = {
-    ...firstPage,
-    items: [course, ...firstPage.items.filter((item) => item.id !== course.id)],
-  };
-
-  return {
-    ...previous,
-    pages: [nextFirstPage, ...previous.pages.slice(1)],
-  };
-};
-
-export const CoursesContext = createContext<CoursesContextValue | undefined>(
-  undefined,
-);
-
-export const CoursesProvider = ({ children }: { children: React.ReactNode }) => {
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
+export const CoursesProvider = ({ children }: CoursesProviderProps) => {
   const [activeCourse, setActiveCourse] = useState<Course | null>(null);
 
   const availableCoursesQuery = useInfiniteQuery({
@@ -107,157 +49,48 @@ export const CoursesProvider = ({ children }: { children: React.ReactNode }) => 
     [historyQuery.data],
   );
 
-  const refreshCourses = useCallback(async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: coursesQueryKeys.available() }),
-      queryClient.invalidateQueries({ queryKey: coursesQueryKeys.history() }),
-    ]);
-  }, [queryClient]);
-
-  const loadMoreAvailableCourses = useCallback(async () => {
-    if (!availableCoursesQuery.hasNextPage || availableCoursesQuery.isFetchingNextPage) {
-      return;
-    }
-
+  const fetchNextAvailablePage = useCallback(async () => {
     await availableCoursesQuery.fetchNextPage();
-  }, [availableCoursesQuery.hasNextPage, availableCoursesQuery.isFetchingNextPage, availableCoursesQuery.fetchNextPage]);
+  }, [availableCoursesQuery.fetchNextPage]);
 
-  const loadMoreHistory = useCallback(async () => {
-    if (!historyQuery.hasNextPage || historyQuery.isFetchingNextPage) {
-      return;
-    }
-
+  const fetchNextHistoryPage = useCallback(async () => {
     await historyQuery.fetchNextPage();
-  }, [historyQuery.hasNextPage, historyQuery.isFetchingNextPage, historyQuery.fetchNextPage]);
+  }, [historyQuery.fetchNextPage]);
 
-  const assignCourse = useCallback(
-    async (course: Course): Promise<Course> => {
-      const acceptedCourse: Course = {
-        ...course,
-        statut: "en_attente",
-        livreurId: user?.livreur.id,
-        dateAcceptation: new Date().toISOString(),
-      };
-
-      setActiveCourse(acceptedCourse);
-      queryClient.setQueryData<CourseInfiniteData>(
-        coursesQueryKeys.available(),
-        (previous) => removeCourseFromInfiniteData(previous, course.id),
-      );
-
-      return acceptedCourse;
-    },
-    [queryClient, user?.livreur.id],
+  return (
+    <CoursesDataProvider
+      availableCourses={availableCourses}
+      history={history}
+      activeCourse={activeCourse}
+      hasNextAvailablePage={Boolean(availableCoursesQuery.hasNextPage)}
+      hasNextHistoryPage={Boolean(historyQuery.hasNextPage)}
+    >
+      <CoursesStatusProvider
+        availableCoursesIsPending={availableCoursesQuery.isPending}
+        availableCoursesError={availableCoursesQuery.error}
+        availableCoursesIsFetchingNextPage={
+          availableCoursesQuery.isFetchingNextPage
+        }
+        historyIsPending={historyQuery.isPending}
+        historyError={historyQuery.error}
+        historyIsFetchingNextPage={historyQuery.isFetchingNextPage}
+      >
+        <CoursesActionsProvider
+          availableCourses={availableCourses}
+          activeCourse={activeCourse}
+          setActiveCourse={setActiveCourse}
+          hasNextAvailablePage={Boolean(availableCoursesQuery.hasNextPage)}
+          isFetchingMoreAvailableCourses={
+            availableCoursesQuery.isFetchingNextPage
+          }
+          fetchNextAvailablePage={fetchNextAvailablePage}
+          hasNextHistoryPage={Boolean(historyQuery.hasNextPage)}
+          isFetchingMoreHistory={historyQuery.isFetchingNextPage}
+          fetchNextHistoryPage={fetchNextHistoryPage}
+        >
+          {children}
+        </CoursesActionsProvider>
+      </CoursesStatusProvider>
+    </CoursesDataProvider>
   );
-
-  const acceptCourse = useCallback(
-    async (courseId: string): Promise<Course> => {
-      const foundCourse = availableCourses.find((course) => course.id === courseId);
-      if (!foundCourse) {
-        throw new Error("Course introuvable.");
-      }
-
-      return assignCourse(foundCourse);
-    },
-    [assignCourse, availableCourses],
-  );
-
-  const assignExternalCourse = useCallback(
-    async (course: Course): Promise<Course> => {
-      return assignCourse(course);
-    },
-    [assignCourse],
-  );
-
-  const rejectCourse = useCallback(
-    async (courseId: string): Promise<void> => {
-      queryClient.setQueryData<CourseInfiniteData>(
-        coursesQueryKeys.available(),
-        (previous) => removeCourseFromInfiniteData(previous, courseId),
-      );
-    },
-    [queryClient],
-  );
-
-  const startActiveCourse = useCallback(async (): Promise<void> => {
-    setActiveCourse((previous) => {
-      if (!previous) {
-        return previous;
-      }
-
-      return {
-        ...previous,
-        statut: "en_cours",
-      };
-    });
-  }, []);
-
-  const completeActiveCourse = useCallback(async (): Promise<Course | null> => {
-    if (!activeCourse) {
-      return null;
-    }
-
-    const completedCourse: Course = {
-      ...activeCourse,
-      statut: "terminee",
-      dateTerminaison: new Date().toISOString(),
-    };
-
-    setActiveCourse(null);
-    queryClient.setQueryData<CourseInfiniteData>(coursesQueryKeys.history(), (previous) =>
-      prependCourseToHistory(previous, completedCourse),
-    );
-
-    return completedCourse;
-  }, [activeCourse, queryClient]);
-
-  const firstError = availableCoursesQuery.error ?? historyQuery.error;
-  const error = firstError ? toErrorMessage(firstError) : null;
-  const isLoading =
-    (availableCoursesQuery.isPending || historyQuery.isPending) &&
-    !availableCoursesQuery.isFetchingNextPage &&
-    !historyQuery.isFetchingNextPage;
-
-  const value = useMemo<CoursesContextValue>(
-    () => ({
-      availableCourses,
-      activeCourse,
-      history,
-      isLoading,
-      error,
-      refreshCourses,
-      loadMoreAvailableCourses,
-      hasNextAvailablePage: Boolean(availableCoursesQuery.hasNextPage),
-      isFetchingMoreAvailableCourses: availableCoursesQuery.isFetchingNextPage,
-      loadMoreHistory,
-      hasNextHistoryPage: Boolean(historyQuery.hasNextPage),
-      isFetchingMoreHistory: historyQuery.isFetchingNextPage,
-      acceptCourse,
-      rejectCourse,
-      assignExternalCourse,
-      startActiveCourse,
-      completeActiveCourse,
-    }),
-    [
-      acceptCourse,
-      activeCourse,
-      assignExternalCourse,
-      availableCourses,
-      availableCoursesQuery.hasNextPage,
-      availableCoursesQuery.isFetchingNextPage,
-      completeActiveCourse,
-      error,
-      history,
-      historyQuery.hasNextPage,
-      historyQuery.isFetchingNextPage,
-      isLoading,
-      loadMoreAvailableCourses,
-      loadMoreHistory,
-      refreshCourses,
-      rejectCourse,
-      startActiveCourse,
-    ],
-  );
-
-  return <CoursesContext.Provider value={value}>{children}</CoursesContext.Provider>;
 };

@@ -1,40 +1,47 @@
 import * as Linking from "expo-linking";
-import React from "react";
+import React, { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   ListRenderItemInfo,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { ActiveCourseCard } from "@/src/modules/courses/components/ActiveCourseCard";
-import { useCourses } from "@/src/modules/courses/hooks/useCourses";
+import {
+  useCoursesActions,
+  useCoursesData,
+  useCoursesStatus,
+} from "@/src/modules/courses/hooks/useCourses";
 import { Course } from "@/src/modules/courses/types/courseTypes";
 import { useReservations } from "@/src/modules/reservations/hooks/useReservations";
-import { BorderRadius, COLORS, Shadows, Spacing, Typography } from "@/src/shared/theme";
+import {
+  BorderRadius,
+  COLORS,
+  Shadows,
+  Spacing,
+  Typography,
+} from "@/src/shared/theme";
+import { AdaptiveList } from "@/src/shared/components/AdaptiveList";
+import { FLASH_LIST_THRESHOLD, LIST_PRESETS } from "@/src/shared/performance/listPresets";
 import { formatDate, formatMoney } from "@/src/shared/utils/formatters";
 
 export const ReservationsScreen = () => {
-  const {
-    activeCourse,
-    history,
-    loadMoreHistory,
-    hasNextHistoryPage,
-    isFetchingMoreHistory,
-  } = useCourses();
+  const { activeCourse, history, hasNextHistoryPage } = useCoursesData();
+  const { isFetchingMoreHistory } = useCoursesStatus();
+  const { loadMoreHistory } = useCoursesActions();
   const { startActiveCourse, completeActiveCourse } = useReservations();
 
-  const handleCallClient = async () => {
+  const handleCallClient = useCallback(async () => {
     if (!activeCourse) {
       return;
     }
 
     await Linking.openURL(`tel:${activeCourse.infosClient.telephone}`);
-  };
+  }, [activeCourse]);
 
-  const handleComplete = async () => {
+  const handleComplete = useCallback(async () => {
     const completed = await completeActiveCourse();
 
     if (completed) {
@@ -43,37 +50,29 @@ export const ReservationsScreen = () => {
         `Transactions wallet mises a jour (${formatMoney(completed.montant)}).`,
       );
     }
-  };
+  }, [completeActiveCourse]);
 
-  const header = (
-    <View>
-      <Text style={styles.sectionTitle}>Course active</Text>
-      {activeCourse ? (
-        <ActiveCourseCard
-          course={activeCourse}
-          onStart={() => {
-            void startActiveCourse();
-          }}
-          onComplete={() => {
-            void handleComplete();
-          }}
-          onCallClient={() => {
-            void handleCallClient();
-          }}
-        />
-      ) : (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>Aucune course active</Text>
-          <Text style={styles.emptyText}>
-            Accepte une course depuis l'accueil ou une offre pressing.
-          </Text>
-        </View>
-      )}
-      <Text style={[styles.sectionTitle, { marginTop: Spacing.xl }]}>Historique</Text>
-    </View>
-  );
+  const handleStart = useCallback(() => {
+    void startActiveCourse();
+  }, [startActiveCourse]);
 
-  const renderHistoryItem = ({ item }: ListRenderItemInfo<Course>) => {
+  const handleCallClientPress = useCallback(() => {
+    void handleCallClient();
+  }, [handleCallClient]);
+
+  const handleCompletePress = useCallback(() => {
+    void handleComplete();
+  }, [handleComplete]);
+
+  const handleEndReached = useCallback(() => {
+    if (!hasNextHistoryPage || isFetchingMoreHistory) {
+      return;
+    }
+
+    void loadMoreHistory();
+  }, [hasNextHistoryPage, isFetchingMoreHistory, loadMoreHistory]);
+
+  const renderHistoryItem = useCallback(({ item }: ListRenderItemInfo<Course>) => {
     return (
       <View style={styles.historyCard}>
         <Text style={styles.historyRoute}>
@@ -82,41 +81,79 @@ export const ReservationsScreen = () => {
           {item.quartierArrivee}
         </Text>
         <Text style={styles.historyMeta}>
-          {formatDate(item.dateTerminaison ?? item.dateCreation)} - {formatMoney(item.montant)}
+          {formatDate(item.dateTerminaison ?? item.dateCreation)} -{" "}
+          {formatMoney(item.montant)}
         </Text>
       </View>
     );
-  };
+  }, []);
+
+  const keyExtractor = useCallback((item: Course) => item.id, []);
+
+  const listHeader = useMemo(
+    () => (
+      <View>
+        <Text style={styles.sectionTitle}>Course active</Text>
+        {activeCourse ? (
+          <ActiveCourseCard
+            course={activeCourse}
+            onStart={handleStart}
+            onComplete={handleCompletePress}
+            onCallClient={handleCallClientPress}
+          />
+        ) : (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>Aucune course active</Text>
+            <Text style={styles.emptyText}>
+              Accepte une course depuis l'accueil ou une offre pressing.
+            </Text>
+          </View>
+        )}
+        <Text style={styles.historyTitle}>Historique</Text>
+      </View>
+    ),
+    [activeCourse, handleCallClientPress, handleCompletePress, handleStart],
+  );
+
+  const listEmpty = useMemo(
+    () => (
+      <View style={styles.emptyCard}>
+        <Text style={styles.emptyTitle}>Aucun historique</Text>
+        <Text style={styles.emptyText}>Les courses terminees apparaitront ici.</Text>
+      </View>
+    ),
+    [],
+  );
+
+  const listFooter = useMemo(
+    () =>
+      isFetchingMoreHistory ? (
+        <View style={styles.footerLoader}>
+          <ActivityIndicator size="small" color={COLORS.primary} />
+        </View>
+      ) : null,
+    [isFetchingMoreHistory],
+  );
 
   return (
-    <FlatList
+    <AdaptiveList
       style={styles.container}
       contentContainerStyle={styles.content}
       data={history}
-      keyExtractor={(item) => item.id}
+      keyExtractor={keyExtractor}
       renderItem={renderHistoryItem}
-      ListHeaderComponent={header}
-      ListEmptyComponent={
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>Aucun historique</Text>
-          <Text style={styles.emptyText}>Les courses terminees apparaitront ici.</Text>
-        </View>
-      }
-      ListFooterComponent={
-        isFetchingMoreHistory ? (
-          <View style={styles.footerLoader}>
-            <ActivityIndicator size="small" color={COLORS.primary} />
-          </View>
-        ) : null
-      }
-      onEndReached={() => {
-        if (!hasNextHistoryPage) {
-          return;
-        }
-
-        void loadMoreHistory();
-      }}
+      ListHeaderComponent={listHeader}
+      ListEmptyComponent={listEmpty}
+      ListFooterComponent={listFooter}
+      onEndReached={handleEndReached}
       onEndReachedThreshold={0.35}
+      flashListThreshold={FLASH_LIST_THRESHOLD}
+      estimatedItemSize={LIST_PRESETS.reservations.estimatedItemSize}
+      initialNumToRender={LIST_PRESETS.reservations.initialNumToRender}
+      maxToRenderPerBatch={LIST_PRESETS.reservations.maxToRenderPerBatch}
+      windowSize={LIST_PRESETS.reservations.windowSize}
+      removeClippedSubviews
+      updateCellsBatchingPeriod={LIST_PRESETS.reservations.updateCellsBatchingPeriod}
     />
   );
 };
@@ -134,6 +171,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...Typography.h3,
     color: COLORS.black,
+    marginBottom: Spacing.md,
+  },
+  historyTitle: {
+    ...Typography.h3,
+    color: COLORS.black,
+    marginTop: Spacing.xl,
     marginBottom: Spacing.md,
   },
   emptyCard: {

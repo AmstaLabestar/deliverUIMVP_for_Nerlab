@@ -1,10 +1,20 @@
+import { WalletTransaction } from "@/src/modules/portefeuille/types/walletTypes";
+import {
+  BorderRadius,
+  COLORS,
+  Shadows,
+  Spacing,
+  Typography,
+} from "@/src/shared/theme";
+import { formatDate, formatMoney } from "@/src/shared/utils/formatters";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { WalletTransaction } from "@/src/modules/portefeuille/types/walletTypes";
-import { BorderRadius, COLORS, Shadows, Spacing, Typography } from "@/src/shared/theme";
-import { formatDate, formatMoney } from "@/src/shared/utils/formatters";
 
-export const TransactionItem = ({ transaction }: { transaction: WalletTransaction }) => {
+type TransactionItemProps = {
+  transaction: WalletTransaction;
+};
+
+const TransactionItemComponent = ({ transaction }: TransactionItemProps) => {
   const isCredit = transaction.type === "credit";
 
   return (
@@ -13,12 +23,14 @@ export const TransactionItem = ({ transaction }: { transaction: WalletTransactio
         <Text style={styles.label}>{transaction.label}</Text>
         <Text style={styles.date}>{formatDate(transaction.createdAt)}</Text>
       </View>
-      <Text style={[styles.amount, { color: isCredit ? COLORS.success : COLORS.danger }]}>
+      <Text style={[styles.amount, isCredit ? styles.creditAmount : styles.debitAmount]}>
         {isCredit ? "+" : "-"} {formatMoney(transaction.amount)}
       </Text>
     </View>
   );
 };
+
+export const TransactionItem = React.memo(TransactionItemComponent);
 
 const styles = StyleSheet.create({
   card: {
@@ -46,5 +58,11 @@ const styles = StyleSheet.create({
   },
   amount: {
     ...Typography.label,
+  },
+  creditAmount: {
+    color: COLORS.success,
+  },
+  debitAmount: {
+    color: COLORS.danger,
   },
 });

@@ -1,58 +1,73 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import React from "react";
+import React, { useMemo } from "react";
 import { Platform, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS, Spacing } from "@/src/shared/theme";
 
+const HomeIcon = ({ color, size }: { color: string; size: number }) => (
+  <Ionicons name="home-outline" size={size} color={color} />
+);
+
+const ReservationsIcon = ({ color, size }: { color: string; size: number }) => (
+  <Ionicons name="calendar-outline" size={size} color={color} />
+);
+
+const WalletIcon = ({ color, size }: { color: string; size: number }) => (
+  <Ionicons name="wallet-outline" size={size} color={color} />
+);
+
+const ProfileIcon = ({ color, size }: { color: string; size: number }) => (
+  <Ionicons name="person-outline" size={size} color={color} />
+);
+
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
 
+  const screenOptions = useMemo(
+    () => ({
+      headerStyle: {
+        backgroundColor: COLORS.primary,
+      },
+      headerTintColor: COLORS.white,
+      headerTitleStyle: {
+        fontWeight: "700" as const,
+        fontSize: 18,
+      },
+      tabBarActiveTintColor: COLORS.primary,
+      tabBarInactiveTintColor: COLORS.darkGray,
+      tabBarStyle: {
+        backgroundColor: COLORS.bgPrimary,
+        borderTopColor: COLORS.border,
+        borderTopWidth: 1,
+        paddingTop: Spacing.xs,
+        height: Platform.OS === "ios" ? 65 + insets.bottom : 70,
+        paddingBottom: insets.bottom > 0 ? insets.bottom : Spacing.sm,
+      },
+      tabBarLabelStyle: styles.tabBarLabel,
+    }),
+    [insets.bottom],
+  );
+
   return (
-    <Tabs
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: COLORS.primary,
-        },
-        headerTintColor: COLORS.white,
-        headerTitleStyle: {
-          fontWeight: "700",
-          fontSize: 18,
-        },
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.darkGray,
-        tabBarStyle: {
-          backgroundColor: COLORS.bgPrimary,
-          borderTopColor: COLORS.border,
-          borderTopWidth: 1,
-          paddingTop: Spacing.xs,
-          height: Platform.OS === "ios" ? 65 + insets.bottom : 70,
-          paddingBottom: insets.bottom > 0 ? insets.bottom : Spacing.sm,
-        },
-        tabBarLabelStyle: styles.tabBarLabel,
-      }}
-    >
+    <Tabs screenOptions={screenOptions}>
       <Tabs.Screen
         name="index"
         options={{
           title: "Accueil",
           headerTitle: "Accueil",
           tabBarLabel: "Accueil",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
-          ),
+          tabBarIcon: HomeIcon,
         }}
       />
 
       <Tabs.Screen
         name="reservations"
         options={{
-          title: "Réservations",
-          headerTitle: "Réservations",
-          tabBarLabel: "Réservations",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" size={size} color={color} />
-          ),
+          title: "Reservations",
+          headerTitle: "Reservations",
+          tabBarLabel: "Reservations",
+          tabBarIcon: ReservationsIcon,
         }}
       />
 
@@ -62,9 +77,7 @@ export default function TabsLayout() {
           title: "Portefeuille",
           headerTitle: "Portefeuille",
           tabBarLabel: "Portefeuille",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="wallet-outline" size={size} color={color} />
-          ),
+          tabBarIcon: WalletIcon,
         }}
       />
 
@@ -74,9 +87,7 @@ export default function TabsLayout() {
           title: "Profil",
           headerTitle: "Profil",
           tabBarLabel: "Profil",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
-          ),
+          tabBarIcon: ProfileIcon,
         }}
       />
     </Tabs>

@@ -20,9 +20,16 @@ export interface CourseSettlementInput {
   commissionAmount: number;
 }
 
-export interface WalletContextValue {
+export interface WalletStateContextValue {
   state: WalletState;
   isLoading: boolean;
+}
+
+export interface WalletActionsContextValue {
   recharge: (amount: number) => Promise<void>;
   settleCompletedCourse: (input: CourseSettlementInput) => Promise<void>;
 }
+
+export interface WalletContextValue
+  extends WalletStateContextValue,
+    WalletActionsContextValue {}

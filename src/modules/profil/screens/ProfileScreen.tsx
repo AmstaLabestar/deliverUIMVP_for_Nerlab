@@ -1,44 +1,65 @@
 import { useAuth } from "@/src/modules/auth/hooks/useAuth";
 import { useNotificationPreferences } from "@/src/modules/notifications/hooks/useNotificationPreferences";
-import { BorderRadius, COLORS, Shadows, Spacing, Typography } from "@/src/shared/theme";
-import React, { useState } from "react";
-import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
+import {
+  BorderRadius,
+  COLORS,
+  Shadows,
+  Spacing,
+  Typography,
+} from "@/src/shared/theme";
+import React, { useCallback, useState } from "react";
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+
+const trackColors = { false: COLORS.border, true: COLORS.primaryLight };
 
 export const ProfileScreen = () => {
   const { user, signOut } = useAuth();
   const { preferences, setSoundEnabled } = useNotificationPreferences();
-  // TODO: Connect this toggle to a real driver availability service.
-  // Currently it's purely visual and does not persist or communicate with the backend.
   const [isOnline, setIsOnline] = useState(true);
 
-  if (!user) {
-    return (
-      <View style={styles.fallback}>
-        <Text style={styles.fallbackText}>Utilisateur non trouvé.</Text>
-      </View>
-    );
-  }
-
-  const handleLogout = () => {
-    Alert.alert("Déconnexion", "Confirmer la déconnexion ?", [
+  const handleLogout = useCallback(() => {
+    Alert.alert("Deconnexion", "Confirmer la deconnexion ?", [
       { text: "Annuler", style: "cancel" },
       {
-        text: "Déconnecter",
+        text: "Deconnecter",
         style: "destructive",
         onPress: () => {
           void signOut();
         },
       },
     ]);
-  };
+  }, [signOut]);
+
+  const handleSoundToggle = useCallback(
+    (value: boolean) => {
+      void setSoundEnabled(value);
+    },
+    [setSoundEnabled],
+  );
+
+  if (!user) {
+    return (
+      <View style={styles.fallback}>
+        <Text style={styles.fallbackText}>Utilisateur non trouve.</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.profileCard}>
         <Text style={styles.name}>{user.livreur.nom}</Text>
-        <Text style={styles.meta}>📞 +226 {user.telephone}</Text>
-        <Text style={styles.meta}>⭐ {user.livreur.niveauEtoile.toFixed(1)}</Text>
-        <Text style={styles.meta}>🚚 {user.livreur.typeVehicule}</Text>
+        <Text style={styles.meta}>+226 {user.telephone}</Text>
+        <Text style={styles.meta}>Note {user.livreur.niveauEtoile.toFixed(1)}</Text>
+        <Text style={styles.meta}>Vehicule {user.livreur.typeVehicule}</Text>
       </View>
 
       <View style={styles.sectionCard}>
@@ -50,7 +71,7 @@ export const ProfileScreen = () => {
           <Switch
             value={isOnline}
             onValueChange={setIsOnline}
-            trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
+            trackColor={trackColors}
             thumbColor={isOnline ? COLORS.primary : COLORS.gray}
           />
         </View>
@@ -59,22 +80,20 @@ export const ProfileScreen = () => {
           <View>
             <Text style={styles.settingLabel}>Notification sonore colis</Text>
             <Text style={styles.settingHint}>
-              Active le son à l'acceptation d'une course colis.
+              Active le son a l'acceptation d'une course colis.
             </Text>
           </View>
           <Switch
             value={preferences.soundEnabled}
-            onValueChange={(value) => {
-              void setSoundEnabled(value);
-            }}
-            trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
+            onValueChange={handleSoundToggle}
+            trackColor={trackColors}
             thumbColor={preferences.soundEnabled ? COLORS.primary : COLORS.gray}
           />
         </View>
       </View>
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Déconnexion</Text>
+        <Text style={styles.logoutButtonText}>Deconnexion</Text>
       </TouchableOpacity>
     </ScrollView>
   );

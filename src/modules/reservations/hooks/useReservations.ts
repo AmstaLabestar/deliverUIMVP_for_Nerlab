@@ -1,15 +1,19 @@
-import { VehicleType } from "@/src/modules/auth/types/authTypes";
-import { useCourses } from "@/src/modules/courses/hooks/useCourses";
-import { Course } from "@/src/modules/courses/types/courseTypes";
 import { useNetworkStatus } from "@/src/infrastructure/network/useNetworkStatus";
 import { useOfflineSync } from "@/src/infrastructure/offline/useOfflineSync";
 import {
   OfflineMutationAction,
   OfflineMutationPayload,
 } from "@/src/infrastructure/offline/offlineQueueTypes";
-import { useNotificationPreferences } from "@/src/modules/notifications/hooks/useNotificationPreferences";
+import { VehicleType } from "@/src/modules/auth/types/authTypes";
+import {
+  useCoursesActions,
+  useCoursesData,
+} from "@/src/modules/courses/hooks/useCourses";
+import { Course } from "@/src/modules/courses/types/courseTypes";
+import { useNotificationPreferencesActions } from "@/src/modules/notifications/hooks/useNotificationPreferences";
+import { useWalletActions } from "@/src/modules/portefeuille/hooks/useWallet";
 import { PressingOffer } from "@/src/modules/pressing/types/pressingTypes";
-import { useWallet } from "@/src/modules/portefeuille/hooks/useWallet";
+import { useCallback, useMemo } from "react";
 
 const COMMISSION_RATE = 0.1;
 
@@ -39,82 +43,98 @@ const toPressingCourse = (
 };
 
 export const useReservations = () => {
-  const courses = useCourses();
-  const wallet = useWallet();
-  const notifications = useNotificationPreferences();
+  const { activeCourse } = useCoursesData();
+  const {
+    acceptCourse: acceptCourseAction,
+    rejectCourse: rejectCourseAction,
+    assignExternalCourse,
+    startActiveCourse: startActiveCourseAction,
+    completeActiveCourse: completeActiveCourseAction,
+  } = useCoursesActions();
+  const { settleCompletedCourse } = useWalletActions();
+  const { notifyPackageAccepted } = useNotificationPreferencesActions();
   const { isOffline } = useNetworkStatus();
   const { enqueueMutation } = useOfflineSync();
 
-  const enqueueOfflineMutation = async (
-    action: OfflineMutationAction,
-    payload: OfflineMutationPayload,
-  ) => {
-    if (!isOffline) {
-      return;
-    }
+  const enqueueOfflineMutation = useCallback(
+    async (action: OfflineMutationAction, payload: OfflineMutationPayload) => {
+      if (!isOffline) {
+        return;
+      }
 
-    await enqueueMutation({
-      action,
-      payload,
-      conflictStrategy: "server_wins",
-    });
-  };
+      await enqueueMutation({
+        action,
+        payload,
+        conflictStrategy: "server_wins",
+      });
+    },
+    [enqueueMutation, isOffline],
+  );
 
-  const acceptCourse = async (courseId: string) => {
-    const accepted = await courses.acceptCourse(courseId);
+  const acceptCourse = useCallback(
+    async (courseId: string) => {
+      const accepted = await acceptCourseAction(courseId);
 
-    if (accepted.typeLivraison === "colis") {
-      await notifications.notifyPackageAccepted(
-        `${accepted.quartierDepart} -> ${accepted.quartierArrivee}`,
-      );
-    }
+      if (accepted.typeLivraison === "colis") {
+        await notifyPackageAccepted(
+          `${accepted.quartierDepart} -> ${accepted.quartierArrivee}`,
+        );
+      }
 
-    await enqueueOfflineMutation("courses.accept", {
-      courseId: accepted.id,
-      amount: accepted.montant,
-      type: accepted.typeLivraison,
-    });
+      await enqueueOfflineMutation("courses.accept", {
+        courseId: accepted.id,
+        amount: accepted.montant,
+        type: accepted.typeLivraison,
+      });
 
-    return accepted;
-  };
+      return accepted;
+    },
+    [acceptCourseAction, enqueueOfflineMutation, notifyPackageAccepted],
+  );
 
-  const rejectCourse = async (courseId: string) => {
-    await courses.rejectCourse(courseId);
-    await enqueueOfflineMutation("courses.reject", {
-      courseId,
-    });
-  };
+  const rejectCourse = useCallback(
+    async (courseId: string) => {
+      await rejectCourseAction(courseId);
+      await enqueueOfflineMutation("courses.reject", {
+        courseId,
+      });
+    },
+    [enqueueOfflineMutation, rejectCourseAction],
+  );
 
-  const acceptPressingOffer = async (offer: PressingOffer, vehicle: VehicleType) => {
-    const course = toPressingCourse(offer, vehicle);
-    const acceptedCourse = await courses.assignExternalCourse(course);
+  const acceptPressingOffer = useCallback(
+    async (offer: PressingOffer, vehicle: VehicleType) => {
+      const course = toPressingCourse(offer, vehicle);
+      const acceptedCourse = await assignExternalCourse(course);
 
-    await enqueueOfflineMutation("pressing.accept", {
-      offerId: offer.id,
-      courseId: acceptedCourse.id,
-      vehicle,
-    });
+      await enqueueOfflineMutation("pressing.accept", {
+        offerId: offer.id,
+        courseId: acceptedCourse.id,
+        vehicle,
+      });
 
-    return acceptedCourse;
-  };
+      return acceptedCourse;
+    },
+    [assignExternalCourse, enqueueOfflineMutation],
+  );
 
-  const startActiveCourse = async () => {
-    const activeCourseId = courses.activeCourse?.id ?? null;
-    await courses.startActiveCourse();
+  const startActiveCourse = useCallback(async () => {
+    const activeCourseId = activeCourse?.id ?? null;
+    await startActiveCourseAction();
     await enqueueOfflineMutation("courses.start", {
       courseId: activeCourseId,
     });
-  };
+  }, [activeCourse?.id, enqueueOfflineMutation, startActiveCourseAction]);
 
-  const completeActiveCourse = async () => {
-    const completedCourse = await courses.completeActiveCourse();
+  const completeActiveCourse = useCallback(async () => {
+    const completedCourse = await completeActiveCourseAction();
 
     if (!completedCourse) {
       return null;
     }
 
     const commissionAmount = Math.round(completedCourse.montant * COMMISSION_RATE);
-    await wallet.settleCompletedCourse({
+    await settleCompletedCourse({
       courseId: completedCourse.id,
       courseAmount: completedCourse.montant,
       commissionAmount,
@@ -127,13 +147,22 @@ export const useReservations = () => {
     });
 
     return completedCourse;
-  };
+  }, [completeActiveCourseAction, enqueueOfflineMutation, settleCompletedCourse]);
 
-  return {
-    acceptCourse,
-    rejectCourse,
-    acceptPressingOffer,
-    startActiveCourse,
-    completeActiveCourse,
-  };
+  return useMemo(
+    () => ({
+      acceptCourse,
+      rejectCourse,
+      acceptPressingOffer,
+      startActiveCourse,
+      completeActiveCourse,
+    }),
+    [
+      acceptCourse,
+      rejectCourse,
+      acceptPressingOffer,
+      startActiveCourse,
+      completeActiveCourse,
+    ],
+  );
 };

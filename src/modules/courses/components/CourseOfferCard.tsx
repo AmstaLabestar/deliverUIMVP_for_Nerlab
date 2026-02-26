@@ -1,8 +1,14 @@
-import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Course } from "@/src/modules/courses/types/courseTypes";
-import { BorderRadius, COLORS, Shadows, Spacing, Typography } from "@/src/shared/theme";
+import {
+  BorderRadius,
+  COLORS,
+  Shadows,
+  Spacing,
+  Typography,
+} from "@/src/shared/theme";
 import { formatMoney } from "@/src/shared/utils/formatters";
+import React, { useCallback } from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type CourseOfferCardProps = {
   course: Course;
@@ -10,42 +16,53 @@ type CourseOfferCardProps = {
   onReject: (courseId: string) => void;
 };
 
-const getTypeIcon = (type: Course["typeLivraison"]): string => {
+const getTypeLabel = (type: Course["typeLivraison"]): string => {
   switch (type) {
     case "colis":
-      return "📦";
+      return "COLIS";
     case "nourriture":
-      return "🍔";
+      return "FOOD";
     case "documents":
-      return "📄";
+      return "DOCS";
     case "pressing":
-      return "🧺";
+      return "PRESS";
     default:
-      return "🚚";
+      return "COURSE";
   }
 };
 
 const getPaymentLabel = (type: Course["typePaiement"]): string => {
-  return type === "deja_paye" ? "Déjà payé" : "Paiement à la livraison";
+  return type === "deja_paye" ? "Deja paye" : "Paiement a la livraison";
 };
 
-export const CourseOfferCard = ({ course, onAccept, onReject }: CourseOfferCardProps) => {
+const CourseOfferCardComponent = ({
+  course,
+  onAccept,
+  onReject,
+}: CourseOfferCardProps) => {
+  const handleReject = useCallback(() => {
+    onReject(course.id);
+  }, [course.id, onReject]);
+
+  const handleAccept = useCallback(() => {
+    onAccept(course.id);
+  }, [course.id, onAccept]);
+
   return (
     <View style={styles.card}>
       <View style={styles.header}>
         <View style={styles.leftHeader}>
-          <Text style={styles.typeIcon}>{getTypeIcon(course.typeLivraison)}</Text>
-          <Text style={styles.typeLabel}>{course.typeLivraison.toUpperCase()}</Text>
+          <Text style={styles.typeLabel}>{getTypeLabel(course.typeLivraison)}</Text>
         </View>
         <Text style={styles.amount}>{formatMoney(course.montant)}</Text>
       </View>
 
       <View style={styles.routeContainer}>
-        <Text style={styles.routeLabel}>Départ</Text>
+        <Text style={styles.routeLabel}>Depart</Text>
         <Text style={styles.routeValue}>{course.quartierDepart}</Text>
       </View>
       <View style={styles.routeContainer}>
-        <Text style={styles.routeLabel}>Arrivée</Text>
+        <Text style={styles.routeLabel}>Arrivee</Text>
         <Text style={styles.routeValue}>{course.quartierArrivee}</Text>
       </View>
 
@@ -56,20 +73,28 @@ export const CourseOfferCard = ({ course, onAccept, onReject }: CourseOfferCardP
 
       <View style={styles.clientRow}>
         <Text style={styles.clientText}>{course.infosClient.nom}</Text>
-        <Text style={styles.clientText}>📞 {course.infosClient.telephone}</Text>
+        <Text style={styles.clientText}>{course.infosClient.telephone}</Text>
       </View>
 
       <View style={styles.actions}>
-        <TouchableOpacity style={[styles.actionButton, styles.rejectButton]} onPress={() => onReject(course.id)}>
-          <Text style={[styles.actionText, { color: COLORS.danger }]}>Refuser</Text>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.rejectButton]}
+          onPress={handleReject}
+        >
+          <Text style={[styles.actionText, styles.rejectText]}>Refuser</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionButton, styles.acceptButton]} onPress={() => onAccept(course.id)}>
-          <Text style={[styles.actionText, { color: COLORS.white }]}>Accepter</Text>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.acceptButton]}
+          onPress={handleAccept}
+        >
+          <Text style={[styles.actionText, styles.acceptText]}>Accepter</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 };
+
+export const CourseOfferCard = React.memo(CourseOfferCardComponent);
 
 const styles = StyleSheet.create({
   card: {
@@ -89,9 +114,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
-  },
-  typeIcon: {
-    fontSize: 18,
   },
   typeLabel: {
     ...Typography.label,
@@ -156,5 +178,11 @@ const styles = StyleSheet.create({
   },
   actionText: {
     ...Typography.label,
+  },
+  rejectText: {
+    color: COLORS.danger,
+  },
+  acceptText: {
+    color: COLORS.white,
   },
 });

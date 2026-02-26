@@ -11,6 +11,7 @@ const isExpoGo =
   Constants.executionEnvironment === "storeClient";
 
 let notificationsModulePromise: Promise<NotificationsModule | null> | null = null;
+let initializePromise: Promise<void> | null = null;
 
 const loadNotificationsModule = async (): Promise<NotificationsModule | null> => {
   if (isExpoGo) {
@@ -28,21 +29,27 @@ const loadNotificationsModule = async (): Promise<NotificationsModule | null> =>
 };
 
 const initialize = async () => {
-  const Notifications = await loadNotificationsModule();
-  if (!Notifications) {
-    return;
+  if (!initializePromise) {
+    initializePromise = (async () => {
+      const Notifications = await loadNotificationsModule();
+      if (!Notifications) {
+        return;
+      }
+
+      await Notifications.requestPermissionsAsync();
+
+      if (Platform.OS === "android") {
+        await Notifications.setNotificationChannelAsync("course-events", {
+          name: "Evenements courses",
+          importance: Notifications.AndroidImportance.HIGH,
+          sound: CUSTOM_SOUND_FILE,
+          vibrationPattern: [0, 250, 250, 250],
+        });
+      }
+    })();
   }
 
-  await Notifications.requestPermissionsAsync();
-
-  if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync("course-events", {
-      name: "Evenements courses",
-      importance: Notifications.AndroidImportance.HIGH,
-      sound: CUSTOM_SOUND_FILE,
-      vibrationPattern: [0, 250, 250, 250],
-    });
-  }
+  await initializePromise;
 };
 
 const notifyPackageAccepted = async (

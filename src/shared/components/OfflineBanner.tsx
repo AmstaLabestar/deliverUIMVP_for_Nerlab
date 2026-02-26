@@ -18,10 +18,10 @@ export const OfflineBanner = () => {
       ? `Synchronisation en cours... ${queuedCount} restant(es).`
       : `${queuedCount} action(s) en attente de synchronisation.`;
 
-  const backgroundColor = isOffline ? COLORS.warning : COLORS.info;
+  const bannerVariant = isOffline ? styles.offline : styles.online;
 
   return (
-    <View style={[styles.container, { backgroundColor }]}>
+    <View style={[styles.container, bannerVariant]}>
       <Text style={styles.text}>{message}</Text>
     </View>
   );
@@ -42,6 +42,12 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 4,
+  },
+  offline: {
+    backgroundColor: COLORS.warning,
+  },
+  online: {
+    backgroundColor: COLORS.info,
   },
   text: {
     ...Typography.caption,

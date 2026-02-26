@@ -1,15 +1,21 @@
-import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { VehicleType } from "@/src/modules/auth/types/authTypes";
 import { PressingOffer } from "@/src/modules/pressing/types/pressingTypes";
-import { BorderRadius, COLORS, Shadows, Spacing, Typography } from "@/src/shared/theme";
+import {
+  BorderRadius,
+  COLORS,
+  Shadows,
+  Spacing,
+  Typography,
+} from "@/src/shared/theme";
 import { formatMoney } from "@/src/shared/utils/formatters";
+import React, { useCallback } from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type PressingOfferCardProps = {
   offer: PressingOffer;
   selectedVehicle: VehicleType | null;
-  onSelectVehicle: (vehicle: VehicleType) => void;
-  onAccept: () => void;
+  onSelectVehicle: (offerId: string, vehicle: VehicleType) => void;
+  onAccept: (offerId: string) => void;
 };
 
 const vehicleLabelMap: Record<VehicleType, string> = {
@@ -19,20 +25,33 @@ const vehicleLabelMap: Record<VehicleType, string> = {
   tricycle: "Tricycle",
 };
 
-export const PressingOfferCard = ({
+const PressingOfferCardComponent = ({
   offer,
   selectedVehicle,
   onSelectVehicle,
   onAccept,
 }: PressingOfferCardProps) => {
+  const handleAccept = useCallback(() => {
+    onAccept(offer.id);
+  }, [offer.id, onAccept]);
+
+  const buildVehiclePressHandler = useCallback(
+    (vehicle: VehicleType) => () => {
+      onSelectVehicle(offer.id, vehicle);
+    },
+    [offer.id, onSelectVehicle],
+  );
+
   return (
     <View style={styles.card}>
       <Text style={styles.title}>{offer.pressingName}</Text>
       <Text style={styles.meta}>
-        {offer.pickupAddress} → {offer.dropoffAddress}
+        {offer.pickupAddress}
+        {" -> "}
+        {offer.dropoffAddress}
       </Text>
       <Text style={styles.meta}>
-        {offer.distance} km • {formatMoney(offer.amount)}
+        {offer.distance} km - {formatMoney(offer.amount)}
       </Text>
       <Text style={styles.meta}>Client: {offer.clientName}</Text>
 
@@ -44,7 +63,7 @@ export const PressingOfferCard = ({
               styles.vehicleButton,
               selectedVehicle === vehicle && styles.vehicleButtonSelected,
             ]}
-            onPress={() => onSelectVehicle(vehicle)}
+            onPress={buildVehiclePressHandler(vehicle)}
           >
             <Text
               style={[
@@ -58,12 +77,14 @@ export const PressingOfferCard = ({
         ))}
       </View>
 
-      <TouchableOpacity style={styles.acceptButton} onPress={onAccept}>
+      <TouchableOpacity style={styles.acceptButton} onPress={handleAccept}>
         <Text style={styles.acceptButtonText}>Accepter l'offre pressing</Text>
       </TouchableOpacity>
     </View>
   );
 };
+
+export const PressingOfferCard = React.memo(PressingOfferCardComponent);
 
 const styles = StyleSheet.create({
   card: {

@@ -17,6 +17,8 @@ type RequestOptions = {
   headers?: Record<string, string>;
   skipAuthHeader?: boolean;
   skipAuthRefresh?: boolean;
+  signal?: AbortSignal;
+  retryCount?: number;
 };
 
 type ApiErrorPayload = {
@@ -29,7 +31,9 @@ type AuthAwareRequestConfig = AxiosRequestConfig & {
   skipAuthRefresh?: boolean;
 };
 
-const API_TIMEOUT_MS = 15000;
+const API_TIMEOUT_MS = 15_000;
+const BASE_RETRY_DELAY_MS = 600;
+const MAX_RETRY_DELAY_MS = 5_000;
 
 const apiClient = axios.create({
   baseURL: APP_CONFIG.apiBaseUrl,
@@ -66,6 +70,10 @@ const toAppError = (error: unknown): AppError => {
   }
 
   if (axios.isAxiosError<ApiErrorPayload>(error)) {
+    if (error.code === "ERR_CANCELED") {
+      return new AppError("network_error", "Requete annulee.", error);
+    }
+
     const status = error.response?.status;
     const message = parseApiErrorMessage(error);
 
@@ -82,8 +90,6 @@ const toAppError = (error: unknown): AppError => {
 
   return new AppError("unknown_error", "Une erreur inattendue est survenue.", error);
 };
-
-
 
 const buildRefreshedTokens = (
   payload: RefreshTokenResponse,
@@ -106,11 +112,63 @@ const buildRefreshedTokens = (
   };
 };
 
-let refreshRequestPromise: Promise<string> | null = null;
-
 const toAxiosHeaders = (headers: unknown): AxiosHeaders => {
   return AxiosHeaders.from((headers ?? {}) as Record<string, string>);
 };
+
+const isTransientNetworkError = (error: unknown): boolean => {
+  if (!axios.isAxiosError(error)) {
+    return false;
+  }
+
+  if (error.code === "ERR_CANCELED") {
+    return false;
+  }
+
+  if (!error.response) {
+    return true;
+  }
+
+  const status = error.response.status;
+  return status >= 500 && status < 600;
+};
+
+const waitFor = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const resolveRetryDelay = (attempt: number): number => {
+  const delay = BASE_RETRY_DELAY_MS * 2 ** Math.max(0, attempt - 1);
+  return Math.min(delay, MAX_RETRY_DELAY_MS);
+};
+
+const runWithRetry = async <T>(
+  operation: () => Promise<T>,
+  retryCount: number,
+): Promise<T> => {
+  let attempt = 0;
+
+  while (true) {
+    try {
+      return await operation();
+    } catch (error) {
+      attempt += 1;
+      if (attempt > retryCount || !isTransientNetworkError(error)) {
+        throw error;
+      }
+
+      logger.warn("http_retry_attempt", {
+        attempt,
+        retryCount,
+      });
+
+      await waitFor(resolveRetryDelay(attempt));
+    }
+  }
+};
+
+let refreshRequestPromise: Promise<string> | null = null;
 
 const refreshAccessToken = async (): Promise<string> => {
   const session = await authSessionRepository.getSession();
@@ -216,15 +274,32 @@ const buildRequestConfig = (options?: RequestOptions): AuthAwareRequestConfig =>
 
   return {
     headers,
+    signal: options?.signal,
     skipAuthHeader: options?.skipAuthHeader,
     skipAuthRefresh: options?.skipAuthRefresh,
   };
 };
 
+const resolveRetryCount = (method: "get" | "post", options?: RequestOptions): number => {
+  if (typeof options?.retryCount === "number") {
+    return Math.max(0, options.retryCount);
+  }
+
+  if (method === "get") {
+    return 2;
+  }
+
+  return 0;
+};
+
 export const httpClient = {
   async get<T>(url: string, options?: RequestOptions): Promise<T> {
     try {
-      const response = await apiClient.get<T>(url, buildRequestConfig(options));
+      const retryCount = resolveRetryCount("get", options);
+      const response = await runWithRetry(
+        () => apiClient.get<T>(url, buildRequestConfig(options)),
+        retryCount,
+      );
       return response.data;
     } catch (error) {
       throw toAppError(error);
@@ -237,7 +312,11 @@ export const httpClient = {
     options?: RequestOptions,
   ): Promise<TResponse> {
     try {
-      const response = await apiClient.post<TResponse>(url, body, buildRequestConfig(options));
+      const retryCount = resolveRetryCount("post", options);
+      const response = await runWithRetry(
+        () => apiClient.post<TResponse>(url, body, buildRequestConfig(options)),
+        retryCount,
+      );
       return response.data;
     } catch (error) {
       throw toAppError(error);
