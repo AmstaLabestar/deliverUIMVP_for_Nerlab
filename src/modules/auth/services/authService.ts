@@ -157,6 +157,7 @@ const signIn = async (rawCredentials: LoginCredentials): Promise<AuthSession> =>
       {
         skipAuthHeader: true,
         skipAuthRefresh: true,
+        retryCount: 1,
       },
     );
 

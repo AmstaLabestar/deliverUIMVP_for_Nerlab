@@ -7,7 +7,16 @@ import { OfflineSyncProvider } from "@/src/infrastructure/offline/OfflineSyncPro
 import { useAuth } from "@/src/modules/auth/hooks/useAuth";
 import { AuthProvider } from "@/src/modules/auth/store/AuthProvider";
 import { OfflineBanner } from "@/src/shared/components/OfflineBanner";
+import { ToastViewport } from "@/src/shared/components/ToastViewport";
 import { COLORS } from "@/src/shared/theme";
+
+const stackScreenOptions = { headerShown: false };
+const pressingScreenOptions = {
+  headerShown: true,
+  title: "Pressing",
+  headerStyle: { backgroundColor: COLORS.primary },
+  headerTintColor: COLORS.white,
+};
 
 const RootNavigator = () => {
   const { isLoading, isAuthenticated } = useAuth();
@@ -22,7 +31,7 @@ const RootNavigator = () => {
 
   if (!isAuthenticated) {
     return (
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack screenOptions={stackScreenOptions}>
         <Stack.Screen name="index" />
       </Stack>
     );
@@ -30,17 +39,9 @@ const RootNavigator = () => {
 
   return (
     <AppProviders>
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack screenOptions={stackScreenOptions}>
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen
-          name="pressing"
-          options={{
-            headerShown: true,
-            title: "Pressing",
-            headerStyle: { backgroundColor: COLORS.primary },
-            headerTintColor: COLORS.white,
-          }}
-        />
+        <Stack.Screen name="pressing" options={pressingScreenOptions} />
       </Stack>
     </AppProviders>
   );
@@ -55,6 +56,7 @@ export default function RootLayout() {
             <View style={styles.appContainer}>
               <OfflineBanner />
               <RootNavigator />
+              <ToastViewport />
             </View>
           </AuthProvider>
         </OfflineSyncProvider>

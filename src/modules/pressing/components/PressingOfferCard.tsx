@@ -1,15 +1,23 @@
-import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { VehicleType } from "@/src/modules/auth/types/authTypes";
 import { PressingOffer } from "@/src/modules/pressing/types/pressingTypes";
-import { BorderRadius, COLORS, Shadows, Spacing, Typography } from "@/src/shared/theme";
+import { RouteSummary } from "@/src/shared/components/RouteSummary";
+import {
+  BorderRadius,
+  COLORS,
+  Shadows,
+  Spacing,
+  Typography,
+} from "@/src/shared/theme";
 import { formatMoney } from "@/src/shared/utils/formatters";
+import React, { useCallback } from "react";
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type PressingOfferCardProps = {
   offer: PressingOffer;
   selectedVehicle: VehicleType | null;
-  onSelectVehicle: (vehicle: VehicleType) => void;
-  onAccept: () => void;
+  onSelectVehicle: (offerId: string, vehicle: VehicleType) => void;
+  onAccept: (offerId: string) => void;
+  isSubmitting: boolean;
 };
 
 const vehicleLabelMap: Record<VehicleType, string> = {
@@ -19,20 +27,37 @@ const vehicleLabelMap: Record<VehicleType, string> = {
   tricycle: "Tricycle",
 };
 
-export const PressingOfferCard = ({
+const PressingOfferCardComponent = ({
   offer,
   selectedVehicle,
   onSelectVehicle,
   onAccept,
+  isSubmitting,
 }: PressingOfferCardProps) => {
+  const handleAccept = useCallback(() => {
+    onAccept(offer.id);
+  }, [offer.id, onAccept]);
+
+  const buildVehiclePressHandler = useCallback(
+    (vehicle: VehicleType) => () => {
+      onSelectVehicle(offer.id, vehicle);
+    },
+    [offer.id, onSelectVehicle],
+  );
+
   return (
     <View style={styles.card}>
       <Text style={styles.title}>{offer.pressingName}</Text>
+      <RouteSummary
+        from={offer.pickupAddress}
+        to={offer.dropoffAddress}
+        variant="stacked"
+        fromLabel="Collecte"
+        toLabel="Depot"
+        style={styles.routeSummary}
+      />
       <Text style={styles.meta}>
-        {offer.pickupAddress} → {offer.dropoffAddress}
-      </Text>
-      <Text style={styles.meta}>
-        {offer.distance} km • {formatMoney(offer.amount)}
+        {offer.distance} km - {formatMoney(offer.amount)}
       </Text>
       <Text style={styles.meta}>Client: {offer.clientName}</Text>
 
@@ -43,8 +68,10 @@ export const PressingOfferCard = ({
             style={[
               styles.vehicleButton,
               selectedVehicle === vehicle && styles.vehicleButtonSelected,
+              isSubmitting && styles.vehicleButtonDisabled,
             ]}
-            onPress={() => onSelectVehicle(vehicle)}
+            onPress={buildVehiclePressHandler(vehicle)}
+            disabled={isSubmitting}
           >
             <Text
               style={[
@@ -58,12 +85,22 @@ export const PressingOfferCard = ({
         ))}
       </View>
 
-      <TouchableOpacity style={styles.acceptButton} onPress={onAccept}>
-        <Text style={styles.acceptButtonText}>Accepter l'offre pressing</Text>
+      <TouchableOpacity
+        style={[styles.acceptButton, isSubmitting && styles.acceptButtonDisabled]}
+        onPress={handleAccept}
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? (
+          <ActivityIndicator size="small" color={COLORS.white} />
+        ) : (
+          <Text style={styles.acceptButtonText}>Accepter l'offre pressing</Text>
+        )}
       </TouchableOpacity>
     </View>
   );
 };
+
+export const PressingOfferCard = React.memo(PressingOfferCardComponent);
 
 const styles = StyleSheet.create({
   card: {
@@ -80,6 +117,9 @@ const styles = StyleSheet.create({
   meta: {
     ...Typography.caption,
     color: COLORS.darkGray,
+    marginTop: Spacing.xs,
+  },
+  routeSummary: {
     marginTop: Spacing.xs,
   },
   vehicles: {
@@ -100,6 +140,9 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
     backgroundColor: COLORS.primary,
   },
+  vehicleButtonDisabled: {
+    opacity: 0.65,
+  },
   vehicleText: {
     ...Typography.caption,
     color: COLORS.darkGray,
@@ -113,6 +156,9 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     paddingVertical: Spacing.md,
     alignItems: "center",
+  },
+  acceptButtonDisabled: {
+    opacity: 0.75,
   },
   acceptButtonText: {
     ...Typography.label,

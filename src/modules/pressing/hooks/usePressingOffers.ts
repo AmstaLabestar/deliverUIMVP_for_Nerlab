@@ -1,18 +1,31 @@
-import { useCallback, useEffect, useState } from "react";
 import { pressingService } from "@/src/modules/pressing/services/pressingService";
 import { PressingOffer } from "@/src/modules/pressing/types/pressingTypes";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export const usePressingOffers = () => {
   const [offers, setOffers] = useState<PressingOffer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const refreshOffers = useCallback(async () => {
     setIsLoading(true);
     try {
       const nextOffers = await pressingService.fetchOffers();
+      if (!isMountedRef.current) {
+        return;
+      }
+
       setOffers(nextOffers);
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
@@ -20,9 +33,9 @@ export const usePressingOffers = () => {
     void refreshOffers();
   }, [refreshOffers]);
 
-  const removeOffer = (offerId: string) => {
+  const removeOffer = useCallback((offerId: string) => {
     setOffers((current) => current.filter((offer) => offer.id !== offerId));
-  };
+  }, []);
 
   return {
     offers,

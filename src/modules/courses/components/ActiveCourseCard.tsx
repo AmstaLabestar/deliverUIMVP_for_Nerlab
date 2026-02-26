@@ -1,8 +1,15 @@
+import { Course } from "@/src/modules/courses/types/courseTypes";
+import {
+  BorderRadius,
+  COLORS,
+  Shadows,
+  Spacing,
+  Typography,
+} from "@/src/shared/theme";
+import { RouteSummary } from "@/src/shared/components/RouteSummary";
+import { formatMoney } from "@/src/shared/utils/formatters";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Course } from "@/src/modules/courses/types/courseTypes";
-import { BorderRadius, COLORS, Shadows, Spacing, Typography } from "@/src/shared/theme";
-import { formatMoney } from "@/src/shared/utils/formatters";
 
 type ActiveCourseCardProps = {
   course: Course;
@@ -17,13 +24,13 @@ const getStatusLabel = (status: Course["statut"]): string => {
   }
 
   if (status === "en_attente") {
-    return "En attente de démarrage";
+    return "En attente de demarrage";
   }
 
-  return "Terminé";
+  return "Terminee";
 };
 
-export const ActiveCourseCard = ({
+const ActiveCourseCardComponent = ({
   course,
   onStart,
   onComplete,
@@ -39,18 +46,22 @@ export const ActiveCourseCard = ({
 
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Trajet</Text>
-        <Text style={styles.value}>
-          {course.quartierDepart} → {course.quartierArrivee}
-        </Text>
+        <RouteSummary
+          from={course.quartierDepart}
+          to={course.quartierArrivee}
+          variant="stacked"
+          fromLabel="Depart"
+          toLabel="Arrivee"
+        />
         <Text style={styles.subValue}>
-          {course.distance} km • {formatMoney(course.montant)}
+          {course.distance} km - {formatMoney(course.montant)}
         </Text>
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Client</Text>
         <Text style={styles.value}>{course.infosClient.nom}</Text>
-        <Text style={styles.subValue}>📞 {course.infosClient.telephone}</Text>
+        <Text style={styles.subValue}>{course.infosClient.telephone}</Text>
         <Text style={styles.subValue}>{course.infosClient.adresse}</Text>
       </View>
 
@@ -58,20 +69,22 @@ export const ActiveCourseCard = ({
         <TouchableOpacity style={styles.callButton} onPress={onCallClient}>
           <Text style={styles.callButtonText}>Appeler le client</Text>
         </TouchableOpacity>
-        {canStart && (
+        {canStart ? (
           <TouchableOpacity style={styles.primaryButton} onPress={onStart}>
-            <Text style={styles.primaryButtonText}>Démarrer</Text>
+            <Text style={styles.primaryButtonText}>Demarrer</Text>
           </TouchableOpacity>
-        )}
-        {canComplete && (
+        ) : null}
+        {canComplete ? (
           <TouchableOpacity style={styles.successButton} onPress={onComplete}>
             <Text style={styles.primaryButtonText}>Terminer</Text>
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
     </View>
   );
 };
+
+export const ActiveCourseCard = React.memo(ActiveCourseCardComponent);
 
 const styles = StyleSheet.create({
   card: {

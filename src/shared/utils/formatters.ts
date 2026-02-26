@@ -9,3 +9,7 @@ export const formatDate = (isoDate: string): string => {
     year: "numeric",
   });
 };
+
+export const formatRoute = (from: string, to: string): string => {
+  return `De ${from} vers ${to}`;
+};

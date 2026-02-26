@@ -3,10 +3,18 @@ import { STORAGE_KEYS } from "@/src/core/storage/storageKeys";
 import { storageRepository } from "@/src/core/storage/storageRepository";
 import { notificationService } from "@/src/modules/notifications/services/notificationService";
 import {
-  NotificationContextValue,
+  NotificationActionsContextValue,
   NotificationPreferences,
+  NotificationStateContextValue,
 } from "@/src/modules/notifications/types/notificationTypes";
-import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { z } from "zod";
 
 const notificationPreferencesSchema = z.object({
@@ -17,8 +25,12 @@ const defaultPreferences: NotificationPreferences = {
   soundEnabled: true,
 };
 
-export const NotificationPreferencesContext = createContext<
-  NotificationContextValue | undefined
+export const NotificationPreferencesStateContext = createContext<
+  NotificationStateContextValue | undefined
+>(undefined);
+
+export const NotificationPreferencesActionsContext = createContext<
+  NotificationActionsContextValue | undefined
 >(undefined);
 
 export const NotificationPreferencesProvider = ({
@@ -29,8 +41,15 @@ export const NotificationPreferencesProvider = ({
   const [preferences, setPreferences] =
     useState<NotificationPreferences>(defaultPreferences);
   const [isLoading, setIsLoading] = useState(true);
+  const soundEnabledRef = useRef(defaultPreferences.soundEnabled);
 
   useEffect(() => {
+    soundEnabledRef.current = preferences.soundEnabled;
+  }, [preferences.soundEnabled]);
+
+  useEffect(() => {
+    let isMounted = true;
+
     const bootstrap = async () => {
       try {
         await notificationService.initialize();
@@ -39,54 +58,75 @@ export const NotificationPreferencesProvider = ({
           STORAGE_KEYS.notificationPreferences,
         );
 
-        if (raw) {
-          const parsed = notificationPreferencesSchema.safeParse(raw);
-          if (parsed.success) {
-            setPreferences(parsed.data);
-          } else {
-            logger.warn("notification_preferences_storage_invalid", {
-              issues: parsed.error.issues,
-            });
-            await storageRepository.removeItem(STORAGE_KEYS.notificationPreferences);
-          }
+        if (!isMounted || !raw) {
+          return;
+        }
+
+        const parsed = notificationPreferencesSchema.safeParse(raw);
+        if (parsed.success) {
+          setPreferences(parsed.data);
+          soundEnabledRef.current = parsed.data.soundEnabled;
+        } else {
+          logger.warn("notification_preferences_storage_invalid", {
+            issues: parsed.error.issues,
+          });
+          await storageRepository.removeItem(STORAGE_KEYS.notificationPreferences);
         }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     void bootstrap();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const setSoundEnabled = useCallback(async (value: boolean) => {
     setPreferences((prev) => {
+      if (prev.soundEnabled === value) {
+        return prev;
+      }
+
       const next = { ...prev, soundEnabled: value };
+      soundEnabledRef.current = value;
       void storageRepository.setItem(STORAGE_KEYS.notificationPreferences, next);
       return next;
     });
   }, []);
 
   const notifyPackageAccepted = useCallback(async (courseSummary: string) => {
-    const currentPrefs = preferences;
     await notificationService.notifyPackageAccepted(
       courseSummary,
-      currentPrefs.soundEnabled,
+      soundEnabledRef.current,
     );
-  }, [preferences]);
+  }, []);
 
-  const value = useMemo<NotificationContextValue>(
+  const stateValue = useMemo<NotificationStateContextValue>(
     () => ({
       preferences,
       isLoading,
+    }),
+    [isLoading, preferences],
+  );
+
+  const actionsValue = useMemo<NotificationActionsContextValue>(
+    () => ({
       setSoundEnabled,
       notifyPackageAccepted,
     }),
-    [isLoading, preferences, setSoundEnabled, notifyPackageAccepted],
+    [notifyPackageAccepted, setSoundEnabled],
   );
 
   return (
-    <NotificationPreferencesContext.Provider value={value}>
-      {children}
-    </NotificationPreferencesContext.Provider>
+    <NotificationPreferencesStateContext.Provider value={stateValue}>
+      <NotificationPreferencesActionsContext.Provider value={actionsValue}>
+        {children}
+      </NotificationPreferencesActionsContext.Provider>
+    </NotificationPreferencesStateContext.Provider>
   );
 };
