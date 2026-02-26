@@ -6,6 +6,7 @@ import {
   Spacing,
   Typography,
 } from "@/src/shared/theme";
+import { RouteSummary } from "@/src/shared/components/RouteSummary";
 import { formatMoney } from "@/src/shared/utils/formatters";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -45,11 +46,13 @@ const ActiveCourseCardComponent = ({
 
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Trajet</Text>
-        <Text style={styles.value}>
-          {course.quartierDepart}
-          {" -> "}
-          {course.quartierArrivee}
-        </Text>
+        <RouteSummary
+          from={course.quartierDepart}
+          to={course.quartierArrivee}
+          variant="stacked"
+          fromLabel="Depart"
+          toLabel="Arrivee"
+        />
         <Text style={styles.subValue}>
           {course.distance} km - {formatMoney(course.montant)}
         </Text>

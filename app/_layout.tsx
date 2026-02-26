@@ -7,6 +7,7 @@ import { OfflineSyncProvider } from "@/src/infrastructure/offline/OfflineSyncPro
 import { useAuth } from "@/src/modules/auth/hooks/useAuth";
 import { AuthProvider } from "@/src/modules/auth/store/AuthProvider";
 import { OfflineBanner } from "@/src/shared/components/OfflineBanner";
+import { ToastViewport } from "@/src/shared/components/ToastViewport";
 import { COLORS } from "@/src/shared/theme";
 
 const stackScreenOptions = { headerShown: false };
@@ -55,6 +56,7 @@ export default function RootLayout() {
             <View style={styles.appContainer}>
               <OfflineBanner />
               <RootNavigator />
+              <ToastViewport />
             </View>
           </AuthProvider>
         </OfflineSyncProvider>

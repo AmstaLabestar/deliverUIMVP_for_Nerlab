@@ -1,5 +1,6 @@
 import { VehicleType } from "@/src/modules/auth/types/authTypes";
 import { PressingOffer } from "@/src/modules/pressing/types/pressingTypes";
+import { RouteSummary } from "@/src/shared/components/RouteSummary";
 import {
   BorderRadius,
   COLORS,
@@ -9,13 +10,14 @@ import {
 } from "@/src/shared/theme";
 import { formatMoney } from "@/src/shared/utils/formatters";
 import React, { useCallback } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type PressingOfferCardProps = {
   offer: PressingOffer;
   selectedVehicle: VehicleType | null;
   onSelectVehicle: (offerId: string, vehicle: VehicleType) => void;
   onAccept: (offerId: string) => void;
+  isSubmitting: boolean;
 };
 
 const vehicleLabelMap: Record<VehicleType, string> = {
@@ -30,6 +32,7 @@ const PressingOfferCardComponent = ({
   selectedVehicle,
   onSelectVehicle,
   onAccept,
+  isSubmitting,
 }: PressingOfferCardProps) => {
   const handleAccept = useCallback(() => {
     onAccept(offer.id);
@@ -45,11 +48,14 @@ const PressingOfferCardComponent = ({
   return (
     <View style={styles.card}>
       <Text style={styles.title}>{offer.pressingName}</Text>
-      <Text style={styles.meta}>
-        {offer.pickupAddress}
-        {" -> "}
-        {offer.dropoffAddress}
-      </Text>
+      <RouteSummary
+        from={offer.pickupAddress}
+        to={offer.dropoffAddress}
+        variant="stacked"
+        fromLabel="Collecte"
+        toLabel="Depot"
+        style={styles.routeSummary}
+      />
       <Text style={styles.meta}>
         {offer.distance} km - {formatMoney(offer.amount)}
       </Text>
@@ -62,8 +68,10 @@ const PressingOfferCardComponent = ({
             style={[
               styles.vehicleButton,
               selectedVehicle === vehicle && styles.vehicleButtonSelected,
+              isSubmitting && styles.vehicleButtonDisabled,
             ]}
             onPress={buildVehiclePressHandler(vehicle)}
+            disabled={isSubmitting}
           >
             <Text
               style={[
@@ -77,8 +85,16 @@ const PressingOfferCardComponent = ({
         ))}
       </View>
 
-      <TouchableOpacity style={styles.acceptButton} onPress={handleAccept}>
-        <Text style={styles.acceptButtonText}>Accepter l'offre pressing</Text>
+      <TouchableOpacity
+        style={[styles.acceptButton, isSubmitting && styles.acceptButtonDisabled]}
+        onPress={handleAccept}
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? (
+          <ActivityIndicator size="small" color={COLORS.white} />
+        ) : (
+          <Text style={styles.acceptButtonText}>Accepter l'offre pressing</Text>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -103,6 +119,9 @@ const styles = StyleSheet.create({
     color: COLORS.darkGray,
     marginTop: Spacing.xs,
   },
+  routeSummary: {
+    marginTop: Spacing.xs,
+  },
   vehicles: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -121,6 +140,9 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
     backgroundColor: COLORS.primary,
   },
+  vehicleButtonDisabled: {
+    opacity: 0.65,
+  },
   vehicleText: {
     ...Typography.caption,
     color: COLORS.darkGray,
@@ -134,6 +156,9 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     paddingVertical: Spacing.md,
     alignItems: "center",
+  },
+  acceptButtonDisabled: {
+    opacity: 0.75,
   },
   acceptButtonText: {
     ...Typography.label,

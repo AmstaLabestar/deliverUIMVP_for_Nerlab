@@ -6,6 +6,7 @@ import {
   Spacing,
   Typography,
 } from "@/src/shared/theme";
+import { RouteSummary } from "@/src/shared/components/RouteSummary";
 import { formatMoney } from "@/src/shared/utils/formatters";
 import React, { useCallback } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -57,14 +58,13 @@ const CourseOfferCardComponent = ({
         <Text style={styles.amount}>{formatMoney(course.montant)}</Text>
       </View>
 
-      <View style={styles.routeContainer}>
-        <Text style={styles.routeLabel}>Depart</Text>
-        <Text style={styles.routeValue}>{course.quartierDepart}</Text>
-      </View>
-      <View style={styles.routeContainer}>
-        <Text style={styles.routeLabel}>Arrivee</Text>
-        <Text style={styles.routeValue}>{course.quartierArrivee}</Text>
-      </View>
+      <RouteSummary
+        from={course.quartierDepart}
+        to={course.quartierArrivee}
+        variant="stacked"
+        fromLabel="Depart"
+        toLabel="Arrivee"
+      />
 
       <View style={styles.meta}>
         <Text style={styles.metaText}>{course.distance} km</Text>
@@ -122,18 +122,6 @@ const styles = StyleSheet.create({
   amount: {
     ...Typography.h3,
     color: COLORS.success,
-  },
-  routeContainer: {
-    marginBottom: Spacing.sm,
-  },
-  routeLabel: {
-    ...Typography.caption,
-    color: COLORS.gray,
-  },
-  routeValue: {
-    ...Typography.bodySmall,
-    color: COLORS.black,
-    fontWeight: "600",
   },
   meta: {
     flexDirection: "row",

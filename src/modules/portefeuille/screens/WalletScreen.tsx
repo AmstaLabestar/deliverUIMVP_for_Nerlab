@@ -1,6 +1,7 @@
 import { TransactionItem } from "@/src/modules/portefeuille/components/TransactionItem";
 import { useWallet } from "@/src/modules/portefeuille/hooks/useWallet";
 import { WalletTransaction } from "@/src/modules/portefeuille/types/walletTypes";
+import { ListSkeleton } from "@/src/shared/components/ListSkeleton";
 import {
   BorderRadius,
   COLORS,
@@ -42,7 +43,7 @@ const QuickRechargeButton = React.memo(
 );
 
 export const WalletScreen = () => {
-  const { state, recharge } = useWallet();
+  const { state, recharge, isLoading } = useWallet();
 
   const totalCredits = useMemo(
     () =>
@@ -124,6 +125,16 @@ export const WalletScreen = () => {
     () => <Text style={styles.emptyText}>Aucune transaction pour le moment.</Text>,
     [],
   );
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.content}>
+          <ListSkeleton itemCount={5} itemHeight={LIST_PRESETS.wallet.estimatedItemSize} />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <AdaptiveList

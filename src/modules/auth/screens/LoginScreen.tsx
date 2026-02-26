@@ -1,10 +1,10 @@
 import { toErrorMessage } from "@/src/core/errors/toErrorMessage";
 import { useAuth } from "@/src/modules/auth/hooks/useAuth";
+import { toastService } from "@/src/shared/services/toastService";
 import { BorderRadius, COLORS, Spacing, Typography } from "@/src/shared/theme";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -30,7 +30,7 @@ export const LoginScreen = () => {
 
   const handleLogin = useCallback(async () => {
     if (!telephone.trim() || !password.trim()) {
-      Alert.alert("Erreur", "Veuillez remplir tous les champs.");
+      toastService.warning("Champs incomplets", "Veuillez remplir tous les champs.");
       return;
     }
 
@@ -38,7 +38,7 @@ export const LoginScreen = () => {
       setLoading(true);
       await signIn({ telephone: telephone.trim(), password: password.trim() });
     } catch (error) {
-      Alert.alert("Erreur de connexion", toErrorMessage(error));
+      toastService.error("Erreur de connexion", toErrorMessage(error));
     } finally {
       if (isMountedRef.current) {
         setLoading(false);

@@ -17,7 +17,7 @@ import { AdaptiveList } from "@/src/shared/components/AdaptiveList";
 import { ListSkeleton } from "@/src/shared/components/ListSkeleton";
 import { FLASH_LIST_THRESHOLD, LIST_PRESETS } from "@/src/shared/performance/listPresets";
 import { toastService } from "@/src/shared/services/toastService";
-import { formatMoney, formatRoute } from "@/src/shared/utils/formatters";
+import { formatMoney } from "@/src/shared/utils/formatters";
 import { useRouter } from "expo-router";
 import React, { useCallback, useMemo } from "react";
 import {
@@ -54,7 +54,7 @@ export const HomeScreen = () => {
         const accepted = await acceptCourse(courseId);
         toastService.success(
           "Course acceptee",
-          `Trajet assigne: ${formatRoute(accepted.quartierDepart, accepted.quartierArrivee)}.`,
+          `${accepted.quartierDepart} -> ${accepted.quartierArrivee} assignee.`,
         );
       } catch (error) {
         toastService.error("Erreur", toErrorMessage(error));
@@ -151,11 +151,7 @@ export const HomeScreen = () => {
             Nouveaux trajets vers pressing
           </Text>
         </View>
-        <TouchableOpacity
-          style={styles.pressingButton}
-          onPress={handleOpenPressing}
-          activeOpacity={0.85}
-        >
+        <TouchableOpacity style={styles.pressingButton} onPress={handleOpenPressing}>
           <Text style={styles.pressingButtonText}>Voir</Text>
         </TouchableOpacity>
       </View>
@@ -269,3 +265,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 });
+
+

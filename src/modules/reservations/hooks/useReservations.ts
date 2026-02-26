@@ -12,10 +12,22 @@ import {
 import { Course } from "@/src/modules/courses/types/courseTypes";
 import { useNotificationPreferencesActions } from "@/src/modules/notifications/hooks/useNotificationPreferences";
 import { useWalletActions } from "@/src/modules/portefeuille/hooks/useWallet";
+import { pressingService } from "@/src/modules/pressing/services/pressingService";
 import { PressingOffer } from "@/src/modules/pressing/types/pressingTypes";
+import { formatRoute } from "@/src/shared/utils/formatters";
 import { useCallback, useMemo } from "react";
 
 const COMMISSION_RATE = 0.1;
+
+export type PressingCompletionStatus =
+  | "completed"
+  | "invalid_code"
+  | "no_active_pressing";
+
+export type PressingCompletionResult = {
+  status: PressingCompletionStatus;
+  completedCourse: Course | null;
+};
 
 const toPressingCourse = (
   offer: PressingOffer,
@@ -76,9 +88,7 @@ export const useReservations = () => {
       const accepted = await acceptCourseAction(courseId);
 
       if (accepted.typeLivraison === "colis") {
-        await notifyPackageAccepted(
-          `${accepted.quartierDepart} -> ${accepted.quartierArrivee}`,
-        );
+        await notifyPackageAccepted(formatRoute(accepted.quartierDepart, accepted.quartierArrivee));
       }
 
       await enqueueOfflineMutation("courses.accept", {
@@ -149,6 +159,44 @@ export const useReservations = () => {
     return completedCourse;
   }, [completeActiveCourseAction, enqueueOfflineMutation, settleCompletedCourse]);
 
+  const completePressingCourseWithCode = useCallback(
+    async (code: string, signal?: AbortSignal): Promise<PressingCompletionResult> => {
+      if (!activeCourse || activeCourse.typeLivraison !== "pressing") {
+        return {
+          status: "no_active_pressing" as const,
+          completedCourse: null,
+        };
+      }
+
+      if (!/^\d{6}$/.test(code)) {
+        return {
+          status: "invalid_code" as const,
+          completedCourse: null,
+        };
+      }
+
+      const isCodeValid = await pressingService.verifyDeliveryCode({
+        courseId: activeCourse.id,
+        code,
+        signal,
+      });
+
+      if (!isCodeValid) {
+        return {
+          status: "invalid_code" as const,
+          completedCourse: null,
+        };
+      }
+
+      const completedCourse = await completeActiveCourse();
+      return {
+        status: completedCourse ? ("completed" as const) : ("no_active_pressing" as const),
+        completedCourse,
+      };
+    },
+    [activeCourse, completeActiveCourse],
+  );
+
   return useMemo(
     () => ({
       acceptCourse,
@@ -156,6 +204,7 @@ export const useReservations = () => {
       acceptPressingOffer,
       startActiveCourse,
       completeActiveCourse,
+      completePressingCourseWithCode,
     }),
     [
       acceptCourse,
@@ -163,6 +212,7 @@ export const useReservations = () => {
       acceptPressingOffer,
       startActiveCourse,
       completeActiveCourse,
+      completePressingCourseWithCode,
     ],
   );
 };

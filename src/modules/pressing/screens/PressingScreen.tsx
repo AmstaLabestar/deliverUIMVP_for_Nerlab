@@ -3,14 +3,14 @@ import { PressingOfferCard } from "@/src/modules/pressing/components/PressingOff
 import { usePressingOffers } from "@/src/modules/pressing/hooks/usePressingOffers";
 import { PressingOffer } from "@/src/modules/pressing/types/pressingTypes";
 import { useReservations } from "@/src/modules/reservations/hooks/useReservations";
+import { ListSkeleton } from "@/src/shared/components/ListSkeleton";
 import { COLORS, Spacing, Typography } from "@/src/shared/theme";
 import { AdaptiveList } from "@/src/shared/components/AdaptiveList";
 import { FLASH_LIST_THRESHOLD, LIST_PRESETS } from "@/src/shared/performance/listPresets";
-import { Href, useRouter } from "expo-router";
+import { toastService } from "@/src/shared/services/toastService";
+import { useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
   ListRenderItemInfo,
   StyleSheet,
   Text,
@@ -24,6 +24,7 @@ export const PressingScreen = () => {
   const [selectedVehicles, setSelectedVehicles] = useState<
     Record<string, VehicleType | null>
   >({});
+  const [submittingOfferId, setSubmittingOfferId] = useState<string | null>(null);
 
   const offersById = useMemo(
     () => new Map(offers.map((offer) => [offer.id, offer])),
@@ -42,6 +43,10 @@ export const PressingScreen = () => {
 
   const handleAccept = useCallback(
     async (offerId: string) => {
+      if (submittingOfferId === offerId) {
+        return;
+      }
+
       const offer = offersById.get(offerId);
       if (!offer) {
         return;
@@ -49,20 +54,30 @@ export const PressingScreen = () => {
 
       const selectedVehicle = selectedVehicles[offerId];
       if (!selectedVehicle) {
-        Alert.alert(
+        toastService.warning(
           "Vehicule requis",
           "Choisis un type de vehicule avant d'accepter.",
         );
         return;
       }
 
-      await acceptPressingOffer(offer, selectedVehicle);
-      removeOffer(offerId);
-
-      Alert.alert("Offre pressing acceptee", "Course ajoutee dans Reservations.");
-      router.replace("/reservations" as Href);
+      setSubmittingOfferId(offerId);
+      try {
+        await acceptPressingOffer(offer, selectedVehicle);
+        removeOffer(offerId);
+        toastService.success(
+          "Offre pressing acceptee",
+          "Course ajoutee dans Reservations.",
+          "bottom",
+        );
+        router.replace("/reservations");
+      } catch (error) {
+        toastService.error("Echec acceptation", "Impossible d'accepter cette offre.");
+      } finally {
+        setSubmittingOfferId((current) => (current === offerId ? null : current));
+      }
     },
-    [acceptPressingOffer, offersById, removeOffer, router, selectedVehicles],
+    [acceptPressingOffer, offersById, removeOffer, router, selectedVehicles, submittingOfferId],
   );
 
   const renderOfferItem = useCallback(
@@ -72,9 +87,10 @@ export const PressingScreen = () => {
         selectedVehicle={selectedVehicles[item.id] ?? null}
         onSelectVehicle={handleSelectVehicle}
         onAccept={handleAccept}
+        isSubmitting={submittingOfferId === item.id}
       />
     ),
-    [handleAccept, handleSelectVehicle, selectedVehicles],
+    [handleAccept, handleSelectVehicle, selectedVehicles, submittingOfferId],
   );
 
   const keyExtractor = useCallback((item: PressingOffer) => item.id, []);
@@ -91,19 +107,17 @@ export const PressingScreen = () => {
     [],
   );
 
-  const listEmpty = useMemo(
-    () =>
-      isLoading ? (
-        <View style={styles.emptyContainer}>
-          <ActivityIndicator size="small" color={COLORS.primary} />
-        </View>
-      ) : (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Aucune offre pressing pour le moment.</Text>
-        </View>
-      ),
-    [isLoading],
-  );
+  const listEmpty = useMemo(() => {
+    if (isLoading) {
+      return <ListSkeleton itemCount={3} itemHeight={LIST_PRESETS.pressing.estimatedItemSize} />;
+    }
+
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>Aucune offre pressing pour le moment.</Text>
+      </View>
+    );
+  }, [isLoading]);
 
   return (
     <AdaptiveList

@@ -1,5 +1,6 @@
 import { useAuth } from "@/src/modules/auth/hooks/useAuth";
 import { useNotificationPreferences } from "@/src/modules/notifications/hooks/useNotificationPreferences";
+import { toastService } from "@/src/shared/services/toastService";
 import {
   BorderRadius,
   COLORS,
@@ -9,7 +10,7 @@ import {
 } from "@/src/shared/theme";
 import React, { useCallback, useState } from "react";
 import {
-  Alert,
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Switch,
@@ -24,19 +25,25 @@ export const ProfileScreen = () => {
   const { user, signOut } = useAuth();
   const { preferences, setSoundEnabled } = useNotificationPreferences();
   const [isOnline, setIsOnline] = useState(true);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleLogout = useCallback(() => {
-    Alert.alert("Deconnexion", "Confirmer la deconnexion ?", [
-      { text: "Annuler", style: "cancel" },
-      {
-        text: "Deconnecter",
-        style: "destructive",
-        onPress: () => {
-          void signOut();
-        },
-      },
-    ]);
-  }, [signOut]);
+    if (isSigningOut) {
+      return;
+    }
+
+    setIsSigningOut(true);
+    void signOut()
+      .then(() => {
+        toastService.success("Deconnecte", "A bientot.");
+      })
+      .catch(() => {
+        toastService.error("Erreur", "Impossible de se deconnecter.");
+      })
+      .finally(() => {
+        setIsSigningOut(false);
+      });
+  }, [isSigningOut, signOut]);
 
   const handleSoundToggle = useCallback(
     (value: boolean) => {
@@ -92,8 +99,16 @@ export const ProfileScreen = () => {
         </View>
       </View>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Deconnexion</Text>
+      <TouchableOpacity
+        style={[styles.logoutButton, isSigningOut && styles.logoutButtonDisabled]}
+        onPress={handleLogout}
+        disabled={isSigningOut}
+      >
+        {isSigningOut ? (
+          <ActivityIndicator size="small" color={COLORS.white} />
+        ) : (
+          <Text style={styles.logoutButtonText}>Deconnexion</Text>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );
@@ -164,6 +179,9 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     paddingVertical: Spacing.md,
     alignItems: "center",
+  },
+  logoutButtonDisabled: {
+    opacity: 0.72,
   },
   logoutButtonText: {
     ...Typography.label,

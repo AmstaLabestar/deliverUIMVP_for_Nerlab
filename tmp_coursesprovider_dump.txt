@@ -49,11 +49,6 @@ export const CoursesProvider = ({ children }: CoursesProviderProps) => {
     [historyQuery.data],
   );
 
-  const hasNextAvailablePage = Boolean(availableCoursesQuery.hasNextPage);
-  const hasNextHistoryPage = Boolean(historyQuery.hasNextPage);
-  const isFetchingNextAvailablePage = availableCoursesQuery.isFetchingNextPage;
-  const isFetchingNextHistoryPage = historyQuery.isFetchingNextPage;
-
   const fetchNextAvailablePage = useCallback(async () => {
     await availableCoursesQuery.fetchNextPage();
   }, [availableCoursesQuery.fetchNextPage]);
@@ -67,26 +62,30 @@ export const CoursesProvider = ({ children }: CoursesProviderProps) => {
       availableCourses={availableCourses}
       history={history}
       activeCourse={activeCourse}
-      hasNextAvailablePage={hasNextAvailablePage}
-      hasNextHistoryPage={hasNextHistoryPage}
+      hasNextAvailablePage={Boolean(availableCoursesQuery.hasNextPage)}
+      hasNextHistoryPage={Boolean(historyQuery.hasNextPage)}
     >
       <CoursesStatusProvider
         availableCoursesIsPending={availableCoursesQuery.isPending}
         availableCoursesError={availableCoursesQuery.error}
-        availableCoursesIsFetchingNextPage={isFetchingNextAvailablePage}
+        availableCoursesIsFetchingNextPage={
+          availableCoursesQuery.isFetchingNextPage
+        }
         historyIsPending={historyQuery.isPending}
         historyError={historyQuery.error}
-        historyIsFetchingNextPage={isFetchingNextHistoryPage}
+        historyIsFetchingNextPage={historyQuery.isFetchingNextPage}
       >
         <CoursesActionsProvider
           availableCourses={availableCourses}
           activeCourse={activeCourse}
           setActiveCourse={setActiveCourse}
-          hasNextAvailablePage={hasNextAvailablePage}
-          isFetchingMoreAvailableCourses={isFetchingNextAvailablePage}
+          hasNextAvailablePage={Boolean(availableCoursesQuery.hasNextPage)}
+          isFetchingMoreAvailableCourses={
+            availableCoursesQuery.isFetchingNextPage
+          }
           fetchNextAvailablePage={fetchNextAvailablePage}
-          hasNextHistoryPage={hasNextHistoryPage}
-          isFetchingMoreHistory={isFetchingNextHistoryPage}
+          hasNextHistoryPage={Boolean(historyQuery.hasNextPage)}
+          isFetchingMoreHistory={historyQuery.isFetchingNextPage}
           fetchNextHistoryPage={fetchNextHistoryPage}
         >
           {children}
@@ -95,3 +94,5 @@ export const CoursesProvider = ({ children }: CoursesProviderProps) => {
     </CoursesDataProvider>
   );
 };
+
+
